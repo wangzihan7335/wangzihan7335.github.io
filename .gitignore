@@ -1,0 +1,12 @@
+# 这个仓库只发布网站文件，工作区里的其他资料不进入版本库
+/*
+!/.gitignore
+!/.nojekyll
+!/index.html
+!/resume.html
+!/experience.html
+!/life-photos.html
+!/avatar.jpg
+!/resume.pdf
+!/photos/
+!/photos/*.jpg

@@ -1,0 +1,957 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>生活照片 · 王子涵</title>
+<meta name="description" content="王子涵的生活照片墙——五张挂在墙上的生活片段。" />
+<meta name="theme-color" content="#F2F0E9" />
+<script>document.documentElement.classList.add('js');</script>
+<link rel="preload" as="image" href="photos/IMG_0023.jpg" />
+
+<style>
+/* ==========================================================================
+   主题变量 —— 与首页共用同一套 token，换风格只改这一段
+   ========================================================================== */
+:root {
+  --paper:      #F2F0E9;
+  --paper-2:    #E9E6DC;
+  --card:       #FAF9F4;
+  --frame:      #FBFAF5;
+  --ink:        #12110F;
+  --ink-soft:   #6B675E;
+  --mint:       #5AB9A6;
+  --gold:       #F0B33C;
+  --pink:       #EA5C78;
+  --line:       rgba(18, 17, 15, .12);
+  --grid:       rgba(18, 17, 15, .05);
+  --wire-color: rgba(18, 17, 15, .55);
+
+  --bg:         var(--paper);
+  --fg:         var(--ink);
+
+  --font-sans: "Inter", "Helvetica Neue", Helvetica, Arial,
+               "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+               "Noto Sans SC", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono",
+               Menlo, Consolas, "Liberation Mono", monospace;
+
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r-pill: 999px;
+
+  --bw: 1.5px;
+  --shadow-hard: 4px 4px 0 var(--ink);
+
+  --dur-fast:  140ms;
+  --dur-base:  300ms;
+  --ease-out:  cubic-bezier(.22, .61, .36, 1);
+
+  --page-max: 1240px;
+  --pad: clamp(16px, 3.4vw, 36px);
+}
+
+/* ==========================================================================
+   基础
+   ========================================================================== */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+img { display: block; max-width: 100%; }
+a { color: inherit; }
+
+::selection { background: var(--gold); color: var(--ink); }
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 4px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+/* 背景竖向栅格 */
+.grid-lines {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to right, var(--grid) 1px, transparent 1px);
+  background-size: 25% 100%;
+}
+
+/* 极轻的纸张颗粒 */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  opacity: .05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ==========================================================================
+   顶栏
+   ========================================================================== */
+.topbar {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 14px var(--pad);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.swatches {
+  display: flex;
+  gap: 3px;
+  flex: none;
+}
+
+.swatches i {
+  width: 9px;
+  height: 9px;
+  display: block;
+  background: var(--c);
+}
+
+.brand__name {
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2vw, 24px);
+}
+
+.nav a {
+  position: relative;
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .08em;
+  opacity: .68;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.nav a:hover { opacity: 1; }
+
+.nav a[aria-current="page"] { opacity: 1; }
+
+.nav a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 1px;
+  background: currentColor;
+}
+
+.coord {
+  justify-self: end;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   页头
+   ========================================================================== */
+.intro {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 32px;
+  width: 100%;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: clamp(28px, 5.5vh, 56px) var(--pad) clamp(14px, 2.5vh, 24px);
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 10px;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 26px;
+  height: 1px;
+  background: var(--ink);
+  opacity: .4;
+}
+
+.intro__title {
+  margin: 12px 0 0;
+  font-size: clamp(2.7rem, 6.2vw, 4.7rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -.03em;
+}
+
+.intro__meta {
+  max-width: 304px;
+  padding-bottom: 6px;
+}
+
+.intro__count {
+  margin: 0 0 8px;
+  color: var(--ink-soft);
+}
+
+.intro__note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--ink-soft);
+}
+
+/* ==========================================================================
+   照片墙
+   ========================================================================== */
+.wall {
+  position: relative;
+  z-index: 1;
+  padding-bottom: clamp(34px, 6vh, 64px);
+}
+
+.wall__inner {
+  position: relative;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 0 var(--pad);
+}
+
+/* 挂画轨道 */
+.wall__rail {
+  position: absolute;
+  left: var(--pad);
+  right: var(--pad);
+  top: 15px;
+  height: 1px;
+  background: var(--line);
+}
+
+.wall__grid {
+  display: grid;
+  grid-template-columns: 1.05fr .95fr 1.15fr 1fr 1.05fr;
+  align-items: start;
+  gap: clamp(14px, 1.8vw, 24px);
+  padding-top: 12px;
+}
+
+.hang {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  transform: rotate(var(--tilt, 0deg));
+  transform-origin: 50% 3.5px;
+  transition: transform .55s var(--ease-out);
+}
+
+.hang__nail {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #7d786c, var(--ink) 70%);
+  box-shadow: 0 1px 1px rgba(18, 17, 15, .35);
+}
+
+.hang__wire {
+  display: block;
+  width: 100%;
+  height: var(--wire, 36px);
+  stroke: var(--wire-color);
+  stroke-width: 1;
+  fill: none;
+}
+
+.hang__wire line { vector-effect: non-scaling-stroke; }
+
+/* 相框 */
+.frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 12px 12px 0;
+  background: var(--frame);
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  text-decoration: none;
+  text-align: left;
+  box-shadow:
+    0 1px 0 rgba(18, 17, 15, .08),
+    0 22px 34px -24px rgba(18, 17, 15, .55);
+  transition:
+    box-shadow .45s var(--ease-out),
+    transform .45s var(--ease-out);
+}
+
+.frame__photo {
+  display: block;
+  overflow: hidden;
+  background: var(--paper-2);
+}
+
+.frame__photo img {
+  width: 100%;
+  height: auto;
+  transition: transform .8s var(--ease-out);
+}
+
+.frame__cap {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 2px 12px;
+  border-top: 1px solid rgba(18, 17, 15, .1);
+}
+
+.frame__title {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.frame__meta {
+  flex: none;
+  font-size: 8.5px;
+  letter-spacing: .1em;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.frame__zoom {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(.7);
+  transition: opacity .25s var(--ease-out), transform .3s var(--ease-out);
+}
+
+/* 悬停 / 键盘聚焦：相框摆正一点、影像微推近 */
+.hang:hover { transform: rotate(calc(var(--tilt, 0deg) * .3)); }
+.hang:focus-within { transform: rotate(calc(var(--tilt, 0deg) * .3)); }
+
+.hang:hover .frame,
+.hang:focus-within .frame {
+  box-shadow:
+    0 1px 0 rgba(18, 17, 15, .08),
+    0 32px 44px -24px rgba(18, 17, 15, .65);
+}
+
+.hang:hover .frame__photo img,
+.hang:focus-within .frame__photo img { transform: scale(1.04); }
+
+.hang:hover .frame__zoom,
+.hang:focus-within .frame__zoom {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.frame:focus-visible { outline-offset: 5px; }
+
+/* ==========================================================================
+   页脚
+   ========================================================================== */
+.footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 18px;
+  margin-top: auto;
+  padding: 16px var(--pad) 20px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+
+/* ==========================================================================
+   大图查看
+   ========================================================================== */
+.lightbox {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  overflow: visible;
+}
+
+.lightbox[open] {
+  display: grid;
+  place-items: center;
+}
+
+.lightbox::backdrop {
+  background: rgba(18, 17, 15, .58);
+  backdrop-filter: blur(7px);
+  opacity: 0;
+  transition: opacity .3s var(--ease-out);
+}
+
+.lightbox.is-open::backdrop { opacity: 1; }
+
+.lightbox__panel {
+  width: fit-content;
+  max-width: 94vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--card);
+  border: var(--bw) solid var(--ink);
+  box-shadow: 10px 10px 0 rgba(18, 17, 15, .85);
+  opacity: 0;
+  transform: translateY(14px) scale(.98);
+  transition:
+    opacity .3s var(--ease-out),
+    transform .35s var(--ease-out);
+}
+
+.lightbox.is-open .lightbox__panel {
+  opacity: 1;
+  transform: none;
+}
+
+.lightbox__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 9px;
+}
+
+.lightbox__close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--ink);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color var(--dur-fast), color var(--dur-fast);
+}
+
+.lightbox__close:hover { background: var(--ink); color: var(--paper); }
+
+.lightbox__panel img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(1000px, calc(94vw - 30px));
+  max-height: 72vh;
+  background: var(--paper-2);
+  object-fit: contain;
+}
+
+.lightbox__foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  min-width: min(320px, 80vw);
+}
+
+.lightbox__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+}
+
+.lightbox__meta {
+  margin: 5px 0 0;
+  color: var(--ink-soft);
+  font-size: 9px;
+}
+
+.lightbox__nav {
+  display: flex;
+  gap: 8px;
+}
+
+.lightbox__nav button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  color: var(--ink);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color var(--dur-fast), color var(--dur-fast);
+}
+
+.lightbox__nav button:hover { background: var(--ink); color: var(--paper); }
+
+/* ==========================================================================
+   动画
+   ========================================================================== */
+@keyframes hang-drop {
+  0%   { opacity: 0; transform: translateY(-18px) rotate(calc(var(--tilt, 0deg) - 6deg)); }
+  55%  { opacity: 1; transform: translateY(0) rotate(calc(var(--tilt, 0deg) + 1.6deg)); }
+  78%  { transform: translateY(0) rotate(calc(var(--tilt, 0deg) - .5deg)); }
+  100% { opacity: 1; transform: translateY(0) rotate(var(--tilt, 0deg)); }
+}
+
+@keyframes nail-in {
+  from { opacity: 0; transform: scale(.2); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes wire-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* 入场：钉子 → 钢线画出 → 相框落位并轻微摆动
+   用 backwards 填充，动画结束后回到正常样式，避免影响 hover 的旋转 */
+.js .hang {
+  animation: hang-drop 900ms var(--ease-out) backwards;
+  animation-delay: calc(130ms + var(--i, 0) * 110ms);
+}
+
+.js .hang__nail {
+  animation: nail-in 420ms var(--ease-out) backwards;
+  animation-delay: calc(80ms + var(--i, 0) * 110ms);
+}
+
+.js .hang__wire line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: wire-draw 560ms var(--ease-out) forwards;
+  animation-delay: calc(200ms + var(--i, 0) * 110ms);
+}
+
+/* ==========================================================================
+   响应式
+   ========================================================================== */
+@media (max-width: 1100px) {
+  .wall__rail { display: none; }
+
+  .wall__grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(16px, 2.4vw, 26px);
+    padding-top: 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .coord { display: none; }
+  .topbar { grid-template-columns: 1fr auto; }
+}
+
+@media (max-width: 700px) {
+  .intro { align-items: flex-start; }
+  .intro__meta { max-width: none; padding-bottom: 0; }
+
+  .wall__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px 14px;
+  }
+
+  .hang:nth-child(5) { grid-column: span 2; }
+
+  .hang__wire { height: calc(var(--wire, 36px) * .6); }
+
+  .frame { padding: 8px 8px 0; }
+
+  .frame__cap { margin-top: 8px; padding: 7px 1px 9px; gap: 6px; }
+  .frame__title { font-size: 11px; }
+  .frame__meta { font-size: 7.5px; letter-spacing: .06em; }
+
+  .frame__zoom { top: 14px; right: 14px; width: 22px; height: 22px; font-size: 12px; }
+
+  .brand__name { display: none; }
+  .nav { gap: 14px; }
+  .nav a { font-size: 10px; }
+
+  .lightbox { padding: 12px; }
+  .lightbox__panel { max-height: 94vh; padding: 10px; gap: 10px; }
+  .lightbox__panel img { max-height: 58vh; max-width: calc(94vw - 22px); }
+  .lightbox__foot { min-width: 0; gap: 14px; }
+  .lightbox__title { font-size: 15px; }
+  .lightbox__nav button { width: 30px; height: 30px; }
+
+  .footer { justify-content: center; text-align: center; }
+}
+
+/* 尊重系统「减少动态效果」偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .js .hang,
+  .js .hang__nail,
+  .js .hang__wire line {
+    animation: none;
+  }
+
+  .js .hang__wire line {
+    stroke-dashoffset: 0;
+  }
+
+  .hang,
+  .frame,
+  .frame__photo img,
+  .frame__zoom,
+  .lightbox,
+  .lightbox__panel,
+  .lightbox::backdrop,
+  .lightbox__close,
+  .lightbox__nav button {
+    transition: none;
+  }
+
+  .hang:hover,
+  .hang:focus-within { transform: rotate(var(--tilt, 0deg)); }
+
+  .hang:hover .frame__photo img,
+  .hang:focus-within .frame__photo img { transform: none; }
+}
+</style>
+</head>
+
+<body>
+<div class="grid-lines" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="swatches" aria-hidden="true">
+      <i style="--c: var(--mint)"></i>
+      <i style="--c: var(--gold)"></i>
+      <i style="--c: var(--pink)"></i>
+      <i style="--c: var(--ink)"></i>
+    </span>
+    <span class="brand__name mono">WANG ZIHAN</span>
+  </div>
+
+  <nav class="nav" aria-label="主导航">
+    <a href="index.html">首页</a>
+    <a href="resume.html">简历</a>
+    <a href="experience.html">经历</a>
+    <a href="life-photos.html" aria-current="page">照片</a>
+  </nav>
+
+  <span class="coord mono">30.6°N / 114.3°E</span>
+</header>
+
+<main>
+  <section class="intro">
+    <div class="intro__head">
+      <p class="eyebrow mono">PHOTO WALL / 2026</p>
+      <h1 class="intro__title">生活照片</h1>
+    </div>
+
+    <div class="intro__meta">
+      <p class="intro__count mono">05 FRAMES · 2026</p>
+      <p class="intro__note">挂在墙上的一些片段。点击任意一张看大图。</p>
+    </div>
+  </section>
+
+  <section class="wall" aria-label="照片墙">
+    <div class="wall__inner">
+      <div class="wall__rail" aria-hidden="true"></div>
+
+      <div class="wall__grid">
+        <figure class="hang" style="--i: 0; --tilt: -1.1deg; --wire: 38px">
+          <span class="hang__nail" aria-hidden="true"></span>
+          <svg class="hang__wire" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="50" y1="0" x2="2" y2="100" pathLength="1"></line>
+            <line x1="50" y1="0" x2="98" y2="100" pathLength="1"></line>
+          </svg>
+          <a class="frame" href="photos/IMG_0023.jpg" target="_blank" rel="noopener"
+             data-title="旧墙与窗" data-meta="01 · 2026.06.17">
+            <span class="frame__photo">
+              <img src="photos/IMG_0023.jpg" alt="老墙与木窗前，穿红色球衣的留影" width="1600" height="1200" decoding="async" />
+            </span>
+            <span class="frame__cap">
+              <span class="frame__title">旧墙与窗</span>
+              <span class="frame__meta mono">01 · 2026.06.17</span>
+            </span>
+            <span class="frame__zoom" aria-hidden="true">+</span>
+          </a>
+        </figure>
+
+        <figure class="hang" style="--i: 1; --tilt: 1.4deg; --wire: 62px">
+          <span class="hang__nail" aria-hidden="true"></span>
+          <svg class="hang__wire" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="50" y1="0" x2="2" y2="100" pathLength="1"></line>
+            <line x1="50" y1="0" x2="98" y2="100" pathLength="1"></line>
+          </svg>
+          <a class="frame" href="photos/IMG_0205.jpg" target="_blank" rel="noopener"
+             data-title="主楼前" data-meta="02 · 2026.07.01">
+            <span class="frame__photo">
+              <img src="photos/IMG_0205.jpg" alt="华中科技大学主楼前的合影" width="1600" height="1200" decoding="async" />
+            </span>
+            <span class="frame__cap">
+              <span class="frame__title">主楼前</span>
+              <span class="frame__meta mono">02 · 2026.07.01</span>
+            </span>
+            <span class="frame__zoom" aria-hidden="true">+</span>
+          </a>
+        </figure>
+
+        <figure class="hang" style="--i: 2; --tilt: -.7deg; --wire: 26px">
+          <span class="hang__nail" aria-hidden="true"></span>
+          <svg class="hang__wire" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="50" y1="0" x2="2" y2="100" pathLength="1"></line>
+            <line x1="50" y1="0" x2="98" y2="100" pathLength="1"></line>
+          </svg>
+          <a class="frame" href="photos/IMG_0475.jpg" target="_blank" rel="noopener"
+             data-title="江边的桥" data-meta="03 · 2026.08.06">
+            <span class="frame__photo">
+              <img src="photos/IMG_0475.jpg" alt="傍晚的跨江大桥与城市灯光" width="1600" height="1200" decoding="async" />
+            </span>
+            <span class="frame__cap">
+              <span class="frame__title">江边的桥</span>
+              <span class="frame__meta mono">03 · 2026.08.06</span>
+            </span>
+            <span class="frame__zoom" aria-hidden="true">+</span>
+          </a>
+        </figure>
+
+        <figure class="hang" style="--i: 3; --tilt: 1deg; --wire: 50px">
+          <span class="hang__nail" aria-hidden="true"></span>
+          <svg class="hang__wire" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="50" y1="0" x2="2" y2="100" pathLength="1"></line>
+            <line x1="50" y1="0" x2="98" y2="100" pathLength="1"></line>
+          </svg>
+          <a class="frame" href="photos/IMG_0494.jpg" target="_blank" rel="noopener"
+             data-title="山城" data-meta="04 · 2026.08.07">
+            <span class="frame__photo">
+              <img src="photos/IMG_0494.jpg" alt="重庆解放碑街头的合影" width="1200" height="1600" decoding="async" />
+            </span>
+            <span class="frame__cap">
+              <span class="frame__title">山城</span>
+              <span class="frame__meta mono">04 · 2026.08.07</span>
+            </span>
+            <span class="frame__zoom" aria-hidden="true">+</span>
+          </a>
+        </figure>
+
+        <figure class="hang" style="--i: 4; --tilt: -1.3deg; --wire: 34px">
+          <span class="hang__nail" aria-hidden="true"></span>
+          <svg class="hang__wire" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="50" y1="0" x2="2" y2="100" pathLength="1"></line>
+            <line x1="50" y1="0" x2="98" y2="100" pathLength="1"></line>
+          </svg>
+          <a class="frame" href="photos/IMG_1017.jpg" target="_blank" rel="noopener"
+             data-title="屋顶" data-meta="05 · 2026.09.26">
+            <span class="frame__photo">
+              <img src="photos/IMG_1017.jpg" alt="屋顶上以城市为背景的合影" width="1600" height="1200" decoding="async" />
+            </span>
+            <span class="frame__cap">
+              <span class="frame__title">屋顶</span>
+              <span class="frame__meta mono">05 · 2026.09.26</span>
+            </span>
+            <span class="frame__zoom" aria-hidden="true">+</span>
+          </a>
+        </figure>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <span class="mono">© <span data-year>2026</span> 王子涵</span>
+  <span class="mono">WUHAN, CN · HUST</span>
+</footer>
+
+<dialog class="lightbox" id="lightbox" aria-label="照片大图">
+  <div class="lightbox__panel">
+    <div class="lightbox__bar">
+      <span class="mono" id="lb-count">01 / 05</span>
+      <button class="lightbox__close" type="button" aria-label="关闭">
+        关闭 <span aria-hidden="true">×</span>
+      </button>
+    </div>
+
+    <img id="lb-img" src="photos/IMG_0023.jpg" alt="" />
+
+    <div class="lightbox__foot">
+      <div>
+        <p class="lightbox__title" id="lb-title">旧墙与窗</p>
+        <p class="lightbox__meta mono" id="lb-meta">01 · 2026.06.17</p>
+      </div>
+      <div class="lightbox__nav">
+        <button type="button" id="lb-prev" aria-label="上一张">←</button>
+        <button type="button" id="lb-next" aria-label="下一张">→</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const frames = [...document.querySelectorAll('.frame')];
+  const dialog = document.getElementById('lightbox');
+  const img = document.getElementById('lb-img');
+  const titleEl = document.getElementById('lb-title');
+  const metaEl = document.getElementById('lb-meta');
+  const countEl = document.getElementById('lb-count');
+  let index = 0;
+  let lastFocus = null;
+
+  const photos = frames.map((frame) => ({
+    src: frame.getAttribute('href'),
+    title: frame.dataset.title,
+    meta: frame.dataset.meta,
+    alt: frame.querySelector('img').alt,
+  }));
+
+  const render = (i) => {
+    index = (i + photos.length) % photos.length;
+    const photo = photos[index];
+    img.src = photo.src;
+    img.alt = photo.alt;
+    titleEl.textContent = photo.title;
+    metaEl.textContent = photo.meta;
+    countEl.textContent =
+      String(index + 1).padStart(2, '0') + ' / ' + String(photos.length).padStart(2, '0');
+  };
+
+  const open = (i, trigger) => {
+    if (dialog.open) return;
+    lastFocus = trigger || null;
+    render(i);
+    dialog.showModal();
+    requestAnimationFrame(() => dialog.classList.add('is-open'));
+    document.body.style.overflow = 'hidden';
+  };
+
+  const close = () => {
+    if (!dialog.open) return;
+    dialog.classList.remove('is-open');
+    document.body.style.overflow = '';
+    window.setTimeout(() => {
+      if (dialog.open) dialog.close();
+      if (lastFocus) lastFocus.focus();
+    }, 240);
+  };
+
+  frames.forEach((frame, i) => {
+    frame.addEventListener('click', (event) => {
+      // 允许 Ctrl / Cmd / Shift 点击仍在浏览器新标签页打开原图
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+      event.preventDefault();
+      open(i, frame);
+    });
+  });
+
+  document.getElementById('lb-prev').addEventListener('click', () => render(index - 1));
+  document.getElementById('lb-next').addEventListener('click', () => render(index + 1));
+  document.querySelector('.lightbox__close').addEventListener('click', close);
+
+  dialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    close();
+  });
+
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) close();
+  });
+
+  dialog.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      render(index - 1);
+    }
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      render(index + 1);
+    }
+  });
+
+  dialog.addEventListener('close', () => {
+    dialog.classList.remove('is-open');
+    document.body.style.overflow = '';
+  });
+
+  document.querySelectorAll('[data-year]').forEach((el) => {
+    el.textContent = new Date().getFullYear();
+  });
+})();
+</script>
+</body>
+</html>
+
