@@ -21,6 +21,7 @@
 - **流式输出与停止**：SSE 打字机效果，可中途停止，保留半截内容。
 - **复习笔记**：完成时自动生成知识点清单、通法、最终代码、测试用例、易错点与一句话总结；抽屉查看、一键复制 Markdown、下载 `.md`。
 - **本地优先**：会话、模型配置、附件与笔记均持久化在浏览器 localStorage，刷新不丢。后端只做无状态转发，不保存对话。
+- **公网就绪**：完整 Dockerfile / Render 部署步骤，自带 Key 模式无需共享额度；内置 SSRF 防护、可选上游域名白名单和按 IP 限流。
 - **极简手绘视觉**：纸感、楷体、铅笔红、手绘框线与阶梯涂鸦；信息层级主要靠留白与字号建立，而不是卡片和颜色。
 - **响应式**：桌面双栏 / 窄栏，移动端侧边栏抽屉、全宽聊天、代码编辑器和笔记。
 
@@ -54,7 +55,7 @@
 | Markdown | react-markdown + remark-gfm + rehype-highlight | GFM 表格/任务列表、代码高亮、一键复制 |
 | 代码编辑器 | 自研 overlay editor + highlight.js core | 透明 textarea 叠在高亮代码层上；无 CodeMirror/Monaco 等额外大依赖，支持 7 种语言 |
 | 图标 | lucide-react | 统一线性图标 |
-| 后端 | Node.js 原生 `node:http` | 隐藏 Key、处理 CORS/SSE 流式转发、兼容多模态消息；无需 Express/Fastify |
+| 后端 | Node.js 原生 `node:http` | SSE 转发、多模态兼容、静态托管、SSRF 防护与按 IP 限流；无需 Express/Fastify |
 | 存储 | localStorage | 单浏览器持久化，无服务器数据库 |
 
 > 选择原生 Node HTTP 与手写 CSS 是为了让项目在目标环境里**少依赖、可直接运行**；所有交互协议与业务能力不受影响。
@@ -104,9 +105,11 @@ npm run dev
 
 Base URL 既可以填基础地址，也可以直接填完整的 `/chat/completions` 地址。后端会自动补齐 `/v1/chat/completions`。
 
-### 更安全的 Key 方案（可选）
+> 公网部署默认会拦截本机与内网地址，因此 Ollama 这类本地接口需要本地调试时在 `.env` 设置 `ALLOW_PRIVATE_UPSTREAMS=1`。公开部署不要开启这个开关。
 
-不想把 Key 放进浏览器 localStorage 时，可以把 Key 放到服务端：
+### 服务端 Key 方案（可选，仅自用/小范围）
+
+如果你只是自己用，不想把 Key 放进浏览器 localStorage，也可以把 Key 放到服务端：
 
 ```bash
 cp .env.example .env
@@ -116,7 +119,77 @@ cp .env.example .env
 
 然后在模型设置里把 **API Key 留空** 保存即可。前端请求只会发给本地代理，代理再用 `Authorization: Bearer <key>` 调上游。服务端不会把 Key 写入日志。
 
-> ⚠️ 共用电脑时建议使用服务端 `.env` 方案。保存在 localStorage 的 Key 会被同浏览器的其他脚本读取，页面中已给出安全提示。
+> ⚠️ 公开给大家使用时不推荐这种方式：所有访客共用你的额度，容易被刷。请优先使用下方的 A 方案（访客自带 Key）。
+
+## 公开部署（A 方案：访客自带 Key）
+
+GitHub Pages 只能托管静态文件，而本项目需要常驻 Node 进程转发 SSE，所以要把整个服务部署到支持 Node 的平台（Render / Railway / Fly.io / 自己的服务器）。推荐先用 Render 免费套餐。
+
+### Render 部署
+
+1. 用 GitHub 登录 [Render](https://render.com/)，选择 **New → Web Service**；
+2. 连接本仓库 `wangzihan7335/wangzihan7335.github.io`；
+3. 设置：
+
+```text
+Root Directory:  algo-tutor
+Runtime:         Node
+Build Command:   npm install && npm run build
+Start Command:   npm start
+Health Check:    /api/health
+```
+
+4. 环境变量：
+
+| 变量 | 值 | 说明 |
+| --- | --- | --- |
+| `HOST` | `0.0.0.0` | 必须；否则容器内只监听 127.0.0.1 |
+| `NODE_VERSION` | `22` | 项目要求 Node ≥20.19 |
+| `TRUST_PROXY` | `1` | Render 反向代理后读取访客真实 IP 限流 |
+| `RATE_LIMIT_PER_MINUTE` | `30` | 每 IP 每分钟 API 请求上限 |
+| `ALLOWED_API_HOSTS` | 选填 | 允许的模型域名，逗号分隔 |
+
+5. **不要设置 `AI_API_KEY`**。A 方案由每位访客在浏览器里填自己的 Key。
+6. 创建服务，等构建完成，得到一个 `https://xxx.onrender.com` 地址；免费实例闲置会休眠，首次访问较慢。
+
+推荐白名单（不设置则允许任意公网 HTTPS 域名）：
+
+```text
+ALLOWED_API_HOSTS=api.deepseek.com,api.moonshot.cn,api.openai.com,dashscope.aliyuncs.com
+```
+
+如果访客需要使用其他中转/自建服务，把对应域名加入这个变量即可。
+
+### 分享给访客时告诉他们
+
+1. 打开站点后，点首页的「填入我的 Key」或右上角模型设置；
+2. 选 DeepSeek / Kimi / OpenAI / 通义千问预设，或手填其他 OpenAI 兼容接口；
+3. 填入自己在服务商后台申请的 API Key，点「测试连接」；
+4. 保存后回首页开始；
+5. Key 只保存在访客自己的浏览器，不会写入服务器；共用电脑用完请删除模型配置；
+6. 需要上传图片时，模型必须支持视觉（如 `gpt-4o-mini`）；DeepSeek Chat 等纯文本模型不能读图。
+
+### 公网安全措施
+
+- 上游地址只允许 `https`，拦截本机、内网、链路本地与保留地址，并禁用重定向，降低 SSRF 风险；
+- 可选 `ALLOWED_API_HOSTS` 域名白名单，进一步限定可用服务商；
+- 按 IP 限流，`POST /api/chat|title|models/test` 共用每分钟额度；
+- 服务端不落库、不打印 API Key，也不会把 Key 写进 URL；Key 仅在请求期间经过内存；
+- 图片与文字仍会发送给访客自己配置的模型服务商，公开站点请保留隐私说明。
+
+### Docker 部署
+
+也可以在任何支持容器的平台运行：
+
+```bash
+docker build -t shijie-algo-tutor .
+docker run -d --name shijie -p 8787:8787 \
+  -e ALLOWED_API_HOSTS=api.deepseek.com,api.openai.com \
+  -e TRUST_PROXY=1 \
+  shijie-algo-tutor
+```
+
+Dockerfile 已默认设置 `HOST=0.0.0.0`，并暴露 `8787` 端口。生产环境建议放在 HTTPS 反向代理后。
 
 ## 完整业务流程
 
@@ -230,10 +303,13 @@ cp .env.example .env
 algo-tutor/
 ├─ index.html
 ├─ package.json
+├─ Dockerfile              # 任意容器平台部署
+├─ .node-version           # Render / 平台 Node 版本
 ├─ vite.config.ts          # /api 代理到 8787
 ├─ scripts/dev.mjs         # 开发启动器（API + Vite）
 ├─ server/
 │  ├─ index.mjs            # HTTP API、SSE 代理、标题、连接测试、静态托管
+│  ├─ security.mjs         # SSRF 防护、上游白名单、按 IP 限流
 │  └─ mock.mjs             # 内置演示模型的本地剧本（复用真实协议）
 ├─ src/
 │  ├─ App.tsx              # 会话/主题/流式/笔记/设置的总状态编排
@@ -251,7 +327,7 @@ algo-tutor/
 │  ├─ hooks/useMediaQuery.ts
 │  └─ components/          # 侧边栏、聊天、知识点、CodeEditor、AttachmentList、设置、笔记等
 ├─ docs/screenshots/       # README 使用的 WebP 截图
-├─ .env.example
+├─ .env.example            # 部署与安全环境变量说明
 └─ README.md
 ```
 
@@ -350,7 +426,7 @@ npm start
 ## 常见问题
 
 **页面提示「尚未填写 API Key」**
-进入模型设置填写 Key，或按上文使用服务端 `.env` 的 `AI_API_KEY` 并把前端 Key 留空。
+进入模型设置填写自己的 Key。A 方案（公开部署）下每位访客各自填写；只有自用/小范围部署时才建议使用服务端 `.env` 的 `AI_API_KEY`，并把前端 Key 留空。
 
 **接口地址不存在（404）**
 检查 Base URL；也可以直接填写完整的 `/chat/completions` 地址。服务会自动在基础地址后补 `/v1/chat/completions`。
@@ -373,8 +449,8 @@ npm start
 **代码编辑器的快捷键？**
 `Tab` 缩进、`Shift+Tab` 反缩进、`Enter` 自动缩进、`Ctrl/Cmd+Z` 等原生文本编辑快捷键可用。括号与引号会自动闭合，匹配括号会在光标旁描红；写完点「发送代码」即可交给助教。
 
-**为什么我的 API Key 需要经过本地后端？**
-为了绕过浏览器 CORS、统一处理 SSE 流式转发与多模态错误，并让 Key 只在「浏览器 ↔ 本地代理 ↔ 模型服务」之间传递，不直接暴露给第三方脚本。需要更高安全性时请使用服务端 `.env` 方案。
+**为什么我的 API Key 需要经过后端代理？**
+为了绕过浏览器 CORS、统一处理 SSE 流式转发与多模态错误，并让 Key 只在「浏览器 ↔ 你的服务端 ↔ 模型服务」之间传递。服务端不落库、不打印 Key；公开部署建议每位访客用自己的 Key，并根据服务商后台设置消费上限。若完全不想让 Key 经过任何服务器，需要本地运行本项目的 Node 服务。
 
 **为什么上传图片后刷新会变慢？**
 图片会压缩成 WebP 后随会话保存在 localStorage 中，读取大附件会占用一些时间；建议每个会话只保留必要的截图。生产环境如需长期存储大量附件，建议改为 IndexedDB 或服务端对象存储。
@@ -391,6 +467,8 @@ npm start
 - 侧边栏搜索、重命名、置顶、删除确认、折叠/移动端抽屉正常；
 - 模型设置新增/切换/测试连接正常；后端代理的流式、非流式、Base URL 补全、401/402/网络错误映射已用本地 Mock 上游验证；
 - 多文件拖拽上传、文本 / 代码与图片混合发送、附件删除、超限拒绝、图片多模态请求转发均已验证；
+- 公网安全：内网 / 本机 / 云元数据地址拦截、https 强制、域名白名单、302 重定向阻断、按 IP 限流均已用本地 Mock 上游验证；
+- 首页「在线使用 · 自带 API Key」引导、设置页 Key 提示与服务商预设提示在 Chromium 1440×1000 下通过截图检查；
 - 代码编辑器验证了语法高亮、行号滚动同步、当前行高亮、Enter 自动缩进、Tab / Shift+Tab、括号与引号自动闭合、匹配括号高亮及代码直接发送；
 - 明暗主题切换、刷新持久化、深色模式下的设置、笔记与移动端编辑器均通过截图检查；
 - 停止生成保留半截内容并持久化；
@@ -402,4 +480,5 @@ npm start
 - AI 生成内容可能有误，产品定位是学习陪练而非答案库；请保留自己的判断。
 - 文件上传、图片输入和代码编辑内容都会随对话发送给你配置的模型服务；本项目不额外收集或上传数据，会话只存在于本机浏览器。
 - 暂不支持 PDF / Word / Excel 的正文抽取；后续可接入相应解析器扩展 `src/lib/attachments.ts`。
-- 生产环境部署到公网前，请补充鉴权、速率限制、附件病毒扫描与 HTTPS；当前定位是本地个人学习工具。
+- 公开部署建议：保持 `ALLOW_PRIVATE_UPSTREAMS=0`、配置 `ALLOWED_API_HOSTS` 与 `RATE_LIMIT_PER_MINUTE`，使用 HTTPS 和平台提供的自动备份/监控；若改为公共 Key 模式，还需要登录、额度和账单上限。
+- 生产环境如需长期存储大量附件，建议改为 IndexedDB 或服务端对象存储；当前会话存储在用户自己的浏览器 localStorage 中。

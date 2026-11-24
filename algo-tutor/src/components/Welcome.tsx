@@ -1,9 +1,9 @@
+import { KeyRound } from 'lucide-react';
 import type { ModelConfig } from '../types';
 import { EXAMPLE_PROBLEMS } from '../data/defaults';
 
 interface WelcomeProps {
   config: ModelConfig | null;
-  hasConfigs: boolean;
   onPickExample: (prompt: string) => void;
   onOpenSettings: () => void;
   isStreaming: boolean;
@@ -11,12 +11,12 @@ interface WelcomeProps {
 
 export function Welcome({
   config,
-  hasConfigs,
   onPickExample,
   onOpenSettings,
   isStreaming,
 }: WelcomeProps) {
   const isDemo = Boolean(config?.baseUrl.startsWith('mock://'));
+  const needsKey = !config || isDemo || !config.apiKey.trim();
 
   return (
     <section className="welcome">
@@ -55,13 +55,25 @@ export function Welcome({
           </div>
         </div>
 
-        {(isDemo || !hasConfigs) && (
-          <p className="welcome-footnote">
-            {isDemo ? '正在使用演示模型，无需 Key' : '还没有连接模型'}
-            <button type="button" onClick={onOpenSettings}>
-              模型设置
+        {needsKey && (
+          <div className="welcome-setup">
+            <div className="welcome-setup-copy">
+              <span className="welcome-setup-kicker">
+                <KeyRound size={12} strokeWidth={1.8} />
+                在线使用 · 自带 API Key
+              </span>
+              <p>
+                {isDemo
+                  ? '演示模型可以直接体验流程；'
+                  : '当前模型还没有填写 API Key；'}
+                真实 AI 需要你在「模型设置」里填入自己的 Key。
+                <small>Key 只保存在本浏览器，不会写入服务器。</small>
+              </p>
+            </div>
+            <button type="button" className="welcome-setup-action" onClick={onOpenSettings}>
+              填入我的 Key
             </button>
-          </p>
+          </div>
         )}
       </div>
 

@@ -771,7 +771,6 @@ export default function App() {
           ) : (
             <Welcome
               config={activeConfig}
-              hasConfigs={configs.length > 0}
               onPickExample={handlePickExample}
               onOpenSettings={handleOpenSettings}
               isStreaming={Boolean(streaming)}

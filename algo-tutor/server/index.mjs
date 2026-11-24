@@ -16,6 +16,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEMO_MODEL_NAME, mockTitle, streamMockReply } from './mock.mjs';
+import {
+  assertUpstreamAllowed,
+  createRateLimiter,
+  getClientIp,
+} from './security.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -26,6 +31,10 @@ await loadDotEnv(path.join(ROOT, '.env'));
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '127.0.0.1';
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
+const configuredRateLimit = Number(process.env.RATE_LIMIT_PER_MINUTE ?? 30);
+const RATE_LIMIT_PER_MINUTE = Number.isFinite(configuredRateLimit) ? configuredRateLimit : 30;
+const apiRateLimiter = createRateLimiter({ limit: RATE_LIMIT_PER_MINUTE });
 
 /* ------------------------------------------------------------------ utils */
 
@@ -63,13 +72,14 @@ async function loadDotEnv(filePath) {
   }
 }
 
-function sendJson(res, status, payload) {
+function sendJson(res, status, payload, extraHeaders = {}) {
   if (res.writableEnded) return;
   const body = JSON.stringify(payload);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
     'Cache-Control': 'no-store',
+    ...extraHeaders,
   });
   res.end(body);
 }
@@ -264,6 +274,7 @@ function completionPayload(config, messages, overrides = {}) {
 }
 
 async function fetchCompletion(config, messages, overrides = {}) {
+  await assertUpstreamAllowed(config.baseUrl);
   const endpoint = chatEndpointFor(config.baseUrl);
   const headers = authHeaders(config);
   const controller = new AbortController();
@@ -277,6 +288,7 @@ async function fetchCompletion(config, messages, overrides = {}) {
       headers,
       body: JSON.stringify(completionPayload(config, messages, overrides)),
       signal: controller.signal,
+      redirect: 'error',
     });
   } catch (error) {
     clearTimeout(timeout);
@@ -349,6 +361,7 @@ async function handleChat(req, res) {
   };
   res.on('close', onClose);
 
+  await assertUpstreamAllowed(config.baseUrl);
   const endpoint = chatEndpointFor(config.baseUrl);
   const headers = authHeaders(config);
   let upstream;
@@ -358,6 +371,7 @@ async function handleChat(req, res) {
       headers,
       body: JSON.stringify(completionPayload(config, messages, { stream: wantsStream })),
       signal: controller.signal,
+      redirect: 'error',
     });
   } catch (error) {
     if (error?.name === 'AbortError') {
@@ -601,6 +615,11 @@ function serveFile(req, res, filePath, stat, isIndex) {
 /* ---------------------------------------------------------------- server */
 
 const server = http.createServer(async (req, res) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
   const started = Date.now();
   const pathname = (() => {
     try {
@@ -611,11 +630,35 @@ const server = http.createServer(async (req, res) => {
   })();
 
   try {
+    const isRateLimitedRoute =
+      req.method === 'POST' &&
+      (pathname === '/api/chat' || pathname === '/api/title' || pathname === '/api/models/test');
+    if (isRateLimitedRoute) {
+      const ip = getClientIp(req, TRUST_PROXY);
+      const rate = apiRateLimiter.check(ip);
+      if (!rate.allowed) {
+        sendJson(
+          res,
+          429,
+          {
+            error: {
+              message: `请求太频繁了，请 ${rate.retryAfter} 秒后再试。`,
+              code: 'rate_limited',
+              detail: '',
+            },
+          },
+          { 'Retry-After': String(rate.retryAfter) },
+        );
+        return;
+      }
+    }
+
     if (pathname === '/api/health' && req.method === 'GET') {
       sendJson(res, 200, {
         ok: true,
         demo: true,
         hasServerKey: Boolean(process.env.AI_API_KEY),
+        rateLimitPerMinute: RATE_LIMIT_PER_MINUTE,
         time: new Date().toISOString(),
       });
       return;
@@ -653,10 +696,26 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
+  const allowlist = String(process.env.ALLOWED_API_HOSTS || '')
+    .split(',')
+    .map((host) => host.trim())
+    .filter(Boolean);
   console.log(`\n  拾阶 · 算法题引导助教 API`);
   console.log(`  ➜ http://${HOST}:${PORT}`);
   console.log(`  ➜ 演示模型：已启用（无需 Key）`);
-  console.log(`  ➜ 服务端兜底 Key：${process.env.AI_API_KEY ? '已配置' : '未配置'}\n`);
+  console.log(`  ➜ 服务端兜底 Key：${process.env.AI_API_KEY ? '已配置' : '未配置'}`);
+  console.log(
+    `  ➜ 上游白名单：${allowlist.length ? `${allowlist.length} 个域名` : '未限制（仍拦截内网/本机/保留地址）'}`,
+  );
+  console.log(
+    `  ➜ 公共限流：${RATE_LIMIT_PER_MINUTE > 0 ? `${RATE_LIMIT_PER_MINUTE} 次/分钟/IP` : '已关闭'}`,
+  );
+  console.log(`  ➜ 反向代理 X-Forwarded-For：${TRUST_PROXY ? '信任' : '不信任'}`);
+  console.log(
+    `  ➜ 私网 / 本机上游：${
+      process.env.ALLOW_PRIVATE_UPSTREAMS === '1' ? '已允许（仅限本地开发！）' : '已拦截'
+    }\n`,
+  );
 });
 
 function shutdown() {

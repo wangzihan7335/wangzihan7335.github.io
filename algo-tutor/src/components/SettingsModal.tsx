@@ -104,6 +104,9 @@ export function SettingsModal({
     () => draftConfigs.find((config) => config.id === selectedId) || null,
     [draftConfigs, selectedId],
   );
+  const selectedPreset = selectedConfig
+    ? PROVIDER_PRESETS.find((preset) => preset.baseUrl === selectedConfig.baseUrl)
+    : null;
 
   if (!open) return null;
 
@@ -314,7 +317,7 @@ export function SettingsModal({
             <div className="security-note">
               <ShieldAlert size={13} />
               <p>
-                API Key 只保存在本机浏览器。共用设备建议改用服务端 <code>.env</code>。
+                API Key 只保存在本机浏览器，不会写入服务器。公开部署时每位访客使用自己的 Key；建议使用单独的低额度 Key，共用电脑用完请删除配置。
               </p>
             </div>
           </aside>
@@ -373,6 +376,12 @@ export function SettingsModal({
                   </div>
                 </div>
 
+                {selectedPreset && (
+                  <p className="preset-hint">
+                    {selectedPreset.hint}。Key 只保存在本浏览器，建议在服务商后台设置消费上限。
+                  </p>
+                )}
+
                 <div className="form-grid">
                   <label className="field">
                     <span>配置名称</span>
@@ -414,7 +423,7 @@ export function SettingsModal({
                   <label className="field field-full">
                     <span>
                       API Key
-                      <small>留空则使用服务端 .env 的 AI_API_KEY</small>
+                      <small>只保存在本浏览器；在线站点请填自己的 Key</small>
                     </span>
                     <div className="input-with-icon">
                       <KeyRound size={15} />

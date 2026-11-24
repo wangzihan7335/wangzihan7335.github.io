@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.local
+.verify
+.chrome-profile*
+.git
+.gitignore
+*.log
+docs
+README.md
