@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f3eee3" />
+    <meta
+      name="description"
+      content="拾阶：一个用苏格拉底式提问陪伴你解题的算法引导助教。拆知识点、确认掌握度、逐步引导，最后生成可复习笔记。"
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>拾阶 · 算法题引导助教</title>
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('shijie-algo-tutor:theme');
+          if (saved !== 'light' && saved !== 'dark') {
+            saved = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+          }
+          document.documentElement.dataset.theme = saved;
+        } catch (error) {}
+      })();
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #f3eee3;
+        color: #25231d;
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .boot-screen {
+        min-height: 100vh;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 16px;
+      }
+      .boot-mark {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(37, 35, 29, 0.35);
+        border-radius: 50%;
+        color: #25231d;
+        font: 400 21px/1 "Kaiti SC", "KaiTi", "Songti SC", serif;
+      }
+      .boot-screen p {
+        margin: 0;
+        font: 400 12px/1.5 "Kaiti SC", "KaiTi", serif;
+        letter-spacing: 0.12em;
+        color: #877f71;
+      }
+      html[data-theme="dark"] body {
+        background: #171511;
+        color: #efe7d7;
+      }
+      html[data-theme="dark"] .boot-mark {
+        border-color: rgba(239, 231, 215, 0.32);
+        color: #efe7d7;
+      }
+      html[data-theme="dark"] .boot-screen p {
+        color: #8f8677;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot-screen" aria-hidden="true">
+        <div class="boot-mark">拾</div>
+        <p>正在铺开草稿纸…</p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
