@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  BookOpenCheck,
   MoreHorizontal,
   PanelLeftClose,
   PencilLine,
@@ -35,6 +36,8 @@ interface SidebarProps {
   onDelete: (session: Session) => void;
   onTogglePin: (id: string) => void;
   onOpenSettings: () => void;
+  reviewDueCount: number;
+  onOpenReview: () => void;
 }
 
 interface Section {
@@ -75,6 +78,8 @@ export function Sidebar({
   onDelete,
   onTogglePin,
   onOpenSettings,
+  reviewDueCount,
+  onOpenReview,
 }: SidebarProps) {
   const [query, setQuery] = useState('');
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -179,6 +184,11 @@ export function Sidebar({
     if (isMobile) onCloseMobile();
   };
 
+  const handleOpenReview = () => {
+    onOpenReview();
+    if (isMobile) onCloseMobile();
+  };
+
   if (showRail) {
     return (
       <aside className="sidebar sidebar-rail" aria-label="侧边栏（已折叠）">
@@ -205,6 +215,17 @@ export function Sidebar({
             title="搜索会话（Ctrl K）"
           >
             <Search size={18} />
+          </button>
+          <button
+            type="button"
+            className="rail-button rail-review-button"
+            onClick={handleOpenReview}
+            title={`今日复习${reviewDueCount ? `（${reviewDueCount} 张待复习）` : ''}`}
+          >
+            <BookOpenCheck size={18} />
+            {reviewDueCount > 0 && (
+              <span className="rail-review-count">{reviewDueCount > 9 ? '9+' : reviewDueCount}</span>
+            )}
           </button>
         </div>
         <div className="rail-spacer" />
@@ -248,6 +269,12 @@ export function Sidebar({
         <button type="button" className="new-session-button" onClick={handleNew}>
           <Plus size={14} />
           <span>新建题目</span>
+        </button>
+
+        <button type="button" className="review-entry-button" onClick={handleOpenReview}>
+          <BookOpenCheck size={14} />
+          <span>今日复习</span>
+          {reviewDueCount > 0 && <span className="review-entry-count">{reviewDueCount}</span>}
         </button>
 
         <label className="session-search">

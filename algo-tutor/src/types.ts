@@ -37,6 +37,55 @@ export interface Note {
   sourceMessageId?: string;
 }
 
+export type ReviewMode = 'explain' | 'trace' | 'code';
+
+export type ReviewRating = 'again' | 'hard' | 'good' | 'easy';
+
+export type ReviewVerdict = 'correct' | 'partial' | 'incorrect';
+
+/**
+ * AI 生成阶段的卡片草稿；前端再补 id、来源会话与复习调度字段。
+ */
+export interface ReviewCardDraft {
+  mode: ReviewMode;
+  title: string;
+  prompt: string;
+  reference: string;
+  hints?: string[];
+  rubric?: string[];
+  /** trace 模式展示的代码片段。 */
+  snippet?: string;
+  /** code 模式使用的语言；未指定时回退 Python。 */
+  language?: string;
+  pointName?: string;
+}
+
+export interface ReviewCard extends ReviewCardDraft {
+  id: string;
+  sessionId: string;
+  sessionTitle: string;
+  createdAt: number;
+  dueAt: number;
+  intervalDays: number;
+  ease: number;
+  reps: number;
+  lapses: number;
+  lastReviewedAt?: number;
+  lastResult?: ReviewRating;
+  lastVerdict?: ReviewVerdict;
+  lastScore?: number;
+  lastFeedback?: string;
+  attempts?: number;
+}
+
+export interface ReviewGrade {
+  verdict: ReviewVerdict;
+  score: number;
+  feedback: string;
+  missing: string[];
+  suggestedRating: ReviewRating;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -79,6 +128,7 @@ export interface PersistedData {
   sessions: Session[];
   configs: ModelConfig[];
   activeConfigId: string | null;
+  reviewCards: ReviewCard[];
 }
 
 export interface ApiTextPart {

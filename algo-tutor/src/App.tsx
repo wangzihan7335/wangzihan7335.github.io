@@ -6,6 +6,9 @@ import type {
   MessageAttachment,
   ModelConfig,
   Note,
+  ReviewCard,
+  ReviewGrade,
+  ReviewRating,
   Session,
   Theme,
   Toast,
@@ -19,7 +22,13 @@ import {
 } from './lib/protocol';
 import { createId, loadPersistedData, persistData } from './lib/storage';
 import { TUTOR_SYSTEM_PROMPT } from './lib/prompt';
-import { requestTitle, streamChat, userMessageForError } from './lib/api';
+import { requestReviewCards, requestTitle, streamChat, userMessageForError } from './lib/api';
+import {
+  buildReviewContext,
+  createReviewCardFromDraft,
+  dueReviewCards,
+  scheduleReviewCard,
+} from './lib/review';
 import { languageLabel, type CodeLanguage } from './lib/code';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { Sidebar } from './components/Sidebar';
@@ -29,6 +38,7 @@ import { ChatView } from './components/ChatView';
 import { Composer } from './components/Composer';
 import { SettingsModal } from './components/SettingsModal';
 import { NoteDrawer } from './components/NoteDrawer';
+import { ReviewDrawer } from './components/ReviewDrawer';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ToastStack } from './components/ToastStack';
 import { cn } from './lib/utils';
@@ -84,6 +94,7 @@ export default function App() {
   const [sessions, setSessions] = useState<Session[]>(initial.sessions);
   const [configs, setConfigs] = useState<ModelConfig[]>(initial.configs);
   const [activeConfigId, setActiveConfigId] = useState<string | null>(initial.activeConfigId);
+  const [reviewCards, setReviewCards] = useState<ReviewCard[]>(initial.reviewCards);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [streaming, setStreaming] = useState<{ sessionId: string; messageId: string } | null>(
@@ -91,6 +102,9 @@ export default function App() {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewGenerating, setReviewGenerating] = useState(false);
+  const [reviewClock, setReviewClock] = useState(() => Date.now());
   const [deleteTarget, setDeleteTarget] = useState<Session | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarPreference);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -101,6 +115,9 @@ export default function App() {
   const activeStreamRef = useRef<AbortController | null>(null);
   const activeSessionIdRef = useRef<string | null>(activeSessionId);
   activeSessionIdRef.current = activeSessionId;
+  const reviewCardsRef = useRef<ReviewCard[]>(reviewCards);
+  reviewCardsRef.current = reviewCards;
+  const reviewGeneratingRef = useRef(false);
 
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId) ?? null,
@@ -112,13 +129,31 @@ export default function App() {
   );
   const isStreamingHere = Boolean(streaming && streaming.sessionId === activeSessionId);
   const isStreamingElsewhere = Boolean(streaming && streaming.sessionId !== activeSessionId);
+  const dueCards = useMemo(
+    () => dueReviewCards(reviewCards, reviewClock),
+    [reviewCards, reviewClock],
+  );
+  const activeSessionCardCount = activeSession
+    ? reviewCards.filter((card) => card.sessionId === activeSession.id).length
+    : 0;
+  const canGenerateReview = Boolean(
+    activeSession &&
+      activeConfig &&
+      !activeSessionCardCount &&
+      activeSession.messages.some((message) => message.role === 'assistant'),
+  );
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setReviewClock(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      persistData({ version: 1, sessions, configs, activeConfigId });
+      persistData({ version: 1, sessions, configs, activeConfigId, reviewCards });
     }, 160);
     return () => window.clearTimeout(timer);
-  }, [sessions, configs, activeConfigId]);
+  }, [sessions, configs, activeConfigId, reviewCards]);
 
   useEffect(() => {
     try {
@@ -155,14 +190,14 @@ export default function App() {
 
   useEffect(() => {
     const overlaysOpen =
-      settingsOpen || noteOpen || Boolean(deleteTarget) || mobileSidebarOpen;
+      settingsOpen || noteOpen || reviewOpen || Boolean(deleteTarget) || mobileSidebarOpen;
     if (!overlaysOpen) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previous;
     };
-  }, [settingsOpen, noteOpen, deleteTarget, mobileSidebarOpen]);
+  }, [settingsOpen, noteOpen, reviewOpen, deleteTarget, mobileSidebarOpen]);
 
   useEffect(() => {
     return () => {
@@ -232,6 +267,83 @@ export default function App() {
       .catch(() => {
         // 标题生成只是锦上添花，失败时保留题目前 15 字作为兜底。
       });
+  };
+
+  const generateReviewCardsForSession = async (
+    sessionSnapshot: Session,
+    config: ModelConfig,
+    options: { silent?: boolean } = {},
+  ): Promise<number> => {
+    if (reviewGeneratingRef.current) return 0;
+    if (reviewCardsRef.current.some((card) => card.sessionId === sessionSnapshot.id)) {
+      if (!options.silent) addToast('这个会话已经生成过复习卡了。', 'info');
+      return 0;
+    }
+    const context = buildReviewContext(sessionSnapshot);
+    if (!context.trim()) {
+      if (!options.silent) addToast('当前会话还没有足够内容来生成复习卡。', 'info');
+      return 0;
+    }
+
+    reviewGeneratingRef.current = true;
+    setReviewGenerating(true);
+    try {
+      const drafts = await requestReviewCards(config, context);
+      const now = Date.now();
+      const cards = drafts
+        .slice(0, 3)
+        .map((draft) => createReviewCardFromDraft(draft, sessionSnapshot, now));
+      if (!cards.length) {
+        throw new Error('AI 没有生成可用的复习卡。');
+      }
+      setReviewCards((previous) => [...cards, ...previous]);
+      setReviewClock(Date.now());
+      addToast(
+        `已生成 ${cards.length} 张复习卡，可在左侧「今日复习」查看。`,
+        'success',
+      );
+      return cards.length;
+    } catch (error) {
+      console.error('生成复习卡失败：', error);
+      if (!options.silent) {
+        addToast(userMessageForError(error).message, 'error');
+      }
+      return 0;
+    } finally {
+      reviewGeneratingRef.current = false;
+      setReviewGenerating(false);
+    }
+  };
+
+  const handleOpenReview = () => {
+    setNoteOpen(false);
+    setReviewOpen(true);
+    setMobileSidebarOpen(false);
+  };
+
+  const handleGenerateReviewCards = () => {
+    if (!activeSession || !activeConfig) {
+      addToast('先打开一次学习会话，再生成复习卡。', 'info');
+      return;
+    }
+    if (activeSessionCardCount > 0) {
+      addToast('当前会话已经有复习卡了。', 'info');
+      return;
+    }
+    void generateReviewCardsForSession(activeSession, activeConfig);
+  };
+
+  const handleRateReviewCard = (
+    card: ReviewCard,
+    rating: ReviewRating,
+    grade: ReviewGrade,
+  ) => {
+    setReviewCards((previous) =>
+      previous.map((item) =>
+        item.id === card.id ? scheduleReviewCard(item, rating, grade) : item,
+      ),
+    );
+    setReviewClock(Date.now());
   };
 
   const startAssistantReply = (
@@ -347,6 +459,30 @@ export default function App() {
       if (createdNote) {
         addToast('复习笔记已生成并保存。', 'success');
         if (activeSessionIdRef.current === sessionId) setNoteOpen(true);
+        const reviewSession: Session = {
+          ...sessionSnapshot,
+          title: noteTitle,
+          note: createdNote,
+          messages: [
+            ...sessionSnapshot.messages,
+            {
+              id: assistantId,
+              role: 'assistant',
+              content: fullContent,
+              kind: parsed.points.length ? 'knowledge' : 'text',
+              createdAt: now,
+            },
+          ],
+          knowledgePoints: parsed.points.length
+            ? parsed.points.map((point) => ({
+                ...point,
+                mastery: sessionSnapshot.knowledgePoints.find((item) => item.id === point.id)
+                  ?.mastery,
+              }))
+            : sessionSnapshot.knowledgePoints,
+          updatedAt: now,
+        };
+        void generateReviewCardsForSession(reviewSession, config, { silent: true });
       } else if (parsed.points.length) {
         addToast('已拆出知识点，请按真实情况选择掌握程度。', 'info');
       }
@@ -614,6 +750,9 @@ export default function App() {
       setActiveSessionId(next?.id ?? null);
     }
     setSessions(remaining);
+    setReviewCards((previous) =>
+      previous.filter((card) => card.sessionId !== targetId),
+    );
     setDeleteTarget(null);
     setNoteOpen(false);
     addToast('会话已删除。', 'success');
@@ -732,6 +871,8 @@ export default function App() {
         onDelete={handleDeleteSession}
         onTogglePin={handleTogglePin}
         onOpenSettings={handleOpenSettings}
+        reviewDueCount={dueCards.length}
+        onOpenReview={handleOpenReview}
       />
 
       {mobileSidebarOpen && (
@@ -810,12 +951,26 @@ export default function App() {
         onToast={addToast}
       />
 
+      <ReviewDrawer
+        open={reviewOpen}
+        dueCards={dueCards}
+        totalCards={reviewCards.length}
+        config={activeConfig}
+        activeSession={activeSession}
+        generating={reviewGenerating}
+        canGenerate={canGenerateReview}
+        onClose={() => setReviewOpen(false)}
+        onGenerate={handleGenerateReviewCards}
+        onRate={handleRateReviewCard}
+        onToast={addToast}
+      />
+
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         title="删除这条会话？"
         description={
           deleteTarget
-            ? `「${deleteTarget.title}」的对话、知识点选择与复习笔记都会被删除，且无法恢复。`
+            ? `「${deleteTarget.title}」的对话、知识点选择、复习笔记与复习卡都会被删除，且无法恢复。`
             : ''
         }
         confirmLabel="删除会话"

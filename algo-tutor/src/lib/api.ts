@@ -1,4 +1,10 @@
-import type { ApiMessage, ModelConfig } from '../types';
+import type {
+  ApiMessage,
+  ModelConfig,
+  ReviewCard,
+  ReviewCardDraft,
+  ReviewGrade,
+} from '../types';
 
 export class ChatApiError extends Error {
   status: number;
@@ -291,6 +297,50 @@ export async function testModel(config: ModelConfig): Promise<{
     model: string;
     latencyMs: number;
   };
+}
+
+/** 从一次学习记录中提炼 1-3 张复习卡。 */
+export async function requestReviewCards(
+  config: ModelConfig,
+  context: string,
+): Promise<ReviewCardDraft[]> {
+  const response = await fetch('/api/review/cards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ config: toConfigPayload(config), context }),
+  });
+  if (!response.ok) throw await parseErrorResponse(response);
+  const payload = (await response.json()) as { cards?: ReviewCardDraft[] };
+  return Array.isArray(payload?.cards) ? payload.cards : [];
+}
+
+/** 交给 AI 批改；代码题只做逻辑审查，不编译、不运行。 */
+export async function gradeReviewAnswer(
+  config: ModelConfig,
+  card: ReviewCard,
+  answer: string,
+): Promise<ReviewGrade> {
+  const response = await fetch('/api/review/grade', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      config: toConfigPayload(config),
+      card: {
+        mode: card.mode,
+        title: card.title,
+        prompt: card.prompt,
+        reference: card.reference,
+        rubric: card.rubric || [],
+      },
+      answer,
+    }),
+  });
+  if (!response.ok) throw await parseErrorResponse(response);
+  const payload = (await response.json()) as { grade?: ReviewGrade };
+  if (!payload?.grade) {
+    throw new ChatApiError('AI 没有返回批改结果，请稍后重试。', 502, 'empty_review_grade');
+  }
+  return payload.grade;
 }
 
 export function userMessageForError(error: unknown): { message: string; detail: string } {

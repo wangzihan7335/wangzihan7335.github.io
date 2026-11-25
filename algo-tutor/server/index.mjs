@@ -15,7 +15,7 @@ import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEMO_MODEL_NAME, mockTitle, streamMockReply } from './mock.mjs';
+import { DEMO_MODEL_NAME, buildMockReviewCards, gradeMockReview, mockTitle, streamMockReply } from './mock.mjs';
 import {
   assertUpstreamAllowed,
   createRateLimiter,
@@ -522,6 +522,218 @@ async function handleModelTest(req, res) {
   });
 }
 
+/* --------------------------------------------------------------- review */
+
+const REVIEW_MODES = new Set(['explain', 'trace', 'code']);
+const REVIEW_RATINGS = new Set(['again', 'hard', 'good', 'easy']);
+const REVIEW_VERDICTS = new Set(['correct', 'partial', 'incorrect']);
+const REVIEW_LANGUAGES = new Set([
+  'python',
+  'javascript',
+  'typescript',
+  'cpp',
+  'java',
+  'c',
+  'go',
+]);
+
+function decodeJsonBlock(raw) {
+  const text = String(raw || '').trim();
+  let candidate = text;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) candidate = fenced[1].trim();
+  const start = candidate.indexOf('{');
+  const end = candidate.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) {
+    throw new ApiError('模型返回的复习卡格式不正确，请稍后重试。', 502, 'invalid_review_json');
+  }
+  try {
+    return JSON.parse(candidate.slice(start, end + 1));
+  } catch {
+    throw new ApiError('模型返回的复习卡格式不正确，请稍后重试。', 502, 'invalid_review_json');
+  }
+}
+
+function stringList(raw, maxItems, maxLength) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .slice(0, maxItems)
+    .map((item) => item.slice(0, maxLength));
+}
+
+function normalizeReviewCardDraft(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const item = raw;
+  const mode = REVIEW_MODES.has(item.mode) ? item.mode : 'explain';
+  const prompt = String(item.prompt || '').trim().slice(0, 3000);
+  const reference = String(item.reference || '').trim().slice(0, 8000);
+  if (!prompt || !reference) return null;
+  const language = REVIEW_LANGUAGES.has(String(item.language || '').toLowerCase())
+    ? String(item.language).toLowerCase()
+    : undefined;
+  return {
+    mode,
+    title: (String(item.title || '').trim() || '复习卡').slice(0, 80),
+    prompt,
+    reference,
+    hints: stringList(item.hints, 3, 180),
+    rubric: stringList(item.rubric, 5, 180),
+    snippet: String(item.snippet || '').trim().slice(0, 5000) || undefined,
+    language,
+    pointName: String(item.pointName || '').trim().slice(0, 60) || undefined,
+  };
+}
+
+function normalizeReviewGrade(raw) {
+  if (!raw || typeof raw !== 'object') {
+    throw new ApiError('模型没有返回有效的批改结果，请稍后重试。', 502, 'invalid_review_grade');
+  }
+  const verdict = REVIEW_VERDICTS.has(raw.verdict) ? raw.verdict : 'partial';
+  const suggestedRating = REVIEW_RATINGS.has(raw.suggestedRating)
+    ? raw.suggestedRating
+    : verdict === 'correct'
+      ? 'good'
+      : verdict === 'partial'
+        ? 'hard'
+        : 'again';
+  const numericScore = Number(raw.score);
+  return {
+    verdict,
+    score: Number.isFinite(numericScore) ? Math.max(0, Math.min(100, Math.round(numericScore))) : 60,
+    feedback:
+      String(raw.feedback || '').trim().slice(0, 1000) ||
+      'AI 没有给出具体反馈，请对照参考答案再检查一遍。',
+    missing: stringList(raw.missing, 5, 160),
+    suggestedRating,
+  };
+}
+
+async function handleReviewCards(req, res) {
+  const body = await readJsonBody(req);
+  const config = normalizeConfig(body.config);
+  const context = String(body.context || '').trim().slice(0, 18000);
+  if (!context) {
+    throw new ApiError('当前会话还没有足够内容来生成复习卡。', 400, 'empty_review_context');
+  }
+
+  if (config.baseUrl.startsWith('mock://')) {
+    sendJson(res, 200, { cards: buildMockReviewCards(context) });
+    return;
+  }
+
+  const system = [
+    '你是算法学习复习卡生成器。根据用户的学习记录，生成 1-3 张原子化、可独立作答的复习卡。',
+    '只输出严格 JSON，不要 markdown 代码围栏，不要解释。JSON 结构：',
+    '{"cards":[{"mode":"explain|trace|code","title":"短标题","pointName":"对应知识点",',
+    '"prompt":"只呈现问题，不能包含答案","reference":"标准答案/参考代码/参考推演",',
+    '"hints":["2-3 条递进提示"],"rubric":["2-4 条评分要点"],',
+    '"snippet":"仅 trace 模式需要：要推演的短代码","language":"仅 code 模式需要：python/javascript/typescript/cpp/java/c/go"}]}',
+    '要求：',
+    '1. explain 卡要求用户复述概念、关键条件或原因；',
+    '2. trace 卡给出一段 5-15 行代码，要求用户逐轮推演变量；',
+    '3. code 卡要求用户不看答案重写核心代码；prompt 不能出现完整解法。',
+    '4. 内容必须来自学习记录，不要凭空扩展；若材料不足，少生成几张。',
+    '5. 所有文本使用中文；reference 可以包含代码。',
+  ].join('\n');
+  const user = `以下是学习记录：\n\n${context}\n\n请生成复习卡。`;
+  const response = await fetchCompletion(
+    config,
+    [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+    {
+      stream: false,
+      timeoutMs: 60_000,
+      extra: { max_tokens: 2200, temperature: 0.35 },
+    },
+  );
+  const payload = await response.json().catch(() => null);
+  const content = readCompletionContent(payload);
+  if (!content.trim()) {
+    throw new ApiError('模型没有返回复习卡，请稍后重试。', 502, 'empty_review_cards');
+  }
+  const parsed = decodeJsonBlock(content);
+  const rawCards = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.cards)
+      ? parsed.cards
+      : [];
+  const cards = rawCards
+    .map(normalizeReviewCardDraft)
+    .filter(Boolean)
+    .slice(0, 3);
+  if (!cards.length) {
+    throw new ApiError('模型没有生成可用的复习卡，请稍后重试。', 502, 'invalid_review_cards');
+  }
+  sendJson(res, 200, { cards });
+}
+
+async function handleReviewGrade(req, res) {
+  const body = await readJsonBody(req);
+  const config = normalizeConfig(body.config);
+  const card = body.card;
+  const answer = String(body.answer || '').trim().slice(0, 12000);
+  if (!card || !REVIEW_MODES.has(card.mode)) {
+    throw new ApiError('复习卡内容不正确，无法批改。', 400, 'invalid_review_card');
+  }
+  if (!answer) {
+    throw new ApiError('先写下你的答案，再交给 AI 批改。', 400, 'empty_review_answer');
+  }
+  if (config.baseUrl.startsWith('mock://')) {
+    sendJson(res, 200, { grade: gradeMockReview(card, answer) });
+    return;
+  }
+
+  const system = [
+    '你是严格但克制的算法复习卡批改器。根据卡片问题和参考答案，评价用户答案。',
+    '特别要求：代码题只做逻辑审查，不运行代码、不依赖编译器或测试结果，也不能声称“编译通过/测试通过”。',
+    '不要直接贴出完整正确答案；先指出用户做对了什么，再指出缺失或错误，最后给一个下一步提示。',
+    '只输出严格 JSON，不要 markdown 代码围栏。结构：',
+    '{"verdict":"correct|partial|incorrect","score":0-100,"feedback":"2-4 句具体反馈",',
+    '"missing":["最多 4 条未覆盖要点"],"suggestedRating":"again|hard|good|easy"}',
+    '评分标准：思路正确且边界完整为 correct；思路接近但缺关键条件为 partial；核心错误为 incorrect。',
+    'suggestedRating：incorrect=again，partial=hard，correct=good，答得完整且能举反例= easy。',
+  ].join('\n');
+  const cardForPrompt = {
+    mode: card.mode,
+    title: String(card.title || '').slice(0, 120),
+    prompt: String(card.prompt || '').slice(0, 3000),
+    reference: String(card.reference || '').slice(0, 8000),
+    rubric: Array.isArray(card.rubric) ? card.rubric.slice(0, 5) : [],
+  };
+  const user = [
+    '【复习卡】',
+    JSON.stringify(cardForPrompt, null, 2),
+    '',
+    '【用户答案】',
+    answer,
+    '',
+    '请只返回批改 JSON。',
+  ].join('\n');
+  const response = await fetchCompletion(
+    config,
+    [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+    {
+      stream: false,
+      timeoutMs: 45_000,
+      extra: { max_tokens: 900, temperature: 0.2 },
+    },
+  );
+  const payload = await response.json().catch(() => null);
+  const content = readCompletionContent(payload);
+  if (!content.trim()) {
+    throw new ApiError('模型没有返回批改结果，请稍后重试。', 502, 'empty_review_grade');
+  }
+  const parsed = decodeJsonBlock(content);
+  sendJson(res, 200, { grade: normalizeReviewGrade(parsed) });
+}
+
 /* ---------------------------------------------------------------- static */
 
 const MIME = {
@@ -632,7 +844,11 @@ const server = http.createServer(async (req, res) => {
   try {
     const isRateLimitedRoute =
       req.method === 'POST' &&
-      (pathname === '/api/chat' || pathname === '/api/title' || pathname === '/api/models/test');
+      (pathname === '/api/chat' ||
+        pathname === '/api/title' ||
+        pathname === '/api/models/test' ||
+        pathname === '/api/review/cards' ||
+        pathname === '/api/review/grade');
     if (isRateLimitedRoute) {
       const ip = getClientIp(req, TRUST_PROXY);
       const rate = apiRateLimiter.check(ip);
@@ -673,6 +889,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (pathname === '/api/models/test' && req.method === 'POST') {
       await handleModelTest(req, res);
+      return;
+    }
+    if (pathname === '/api/review/cards' && req.method === 'POST') {
+      await handleReviewCards(req, res);
+      return;
+    }
+    if (pathname === '/api/review/grade' && req.method === 'POST') {
+      await handleReviewGrade(req, res);
       return;
     }
     if (pathname.startsWith('/api/')) {

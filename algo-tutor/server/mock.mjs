@@ -547,3 +547,137 @@ export async function streamMockReply({ messages, res, signal }) {
   }
   res.write('data: [DONE]\n\n');
 }
+
+function contextLine(context, label) {
+  const match = String(context || '').match(new RegExp(`${label}[：:]\\s*([^\\n]+)`));
+  return match?.[1]?.trim() || '';
+}
+
+function firstCodeBlock(context) {
+  const match = String(context || '').match(/```([a-zA-Z+#]*)\r?\n([\s\S]*?)```/);
+  if (!match) return null;
+  const language = (match[1] || 'python').toLowerCase();
+  const supported = /^(python|py|javascript|js|typescript|ts|cpp|c\+\+|java|c|go)$/.test(language)
+    ? language
+    : 'python';
+  const normalizedLanguage =
+    supported === 'py'
+      ? 'python'
+      : supported === 'js'
+        ? 'javascript'
+        : supported === 'ts'
+          ? 'typescript'
+          : supported === 'c++'
+            ? 'cpp'
+            : supported;
+  return { language: normalizedLanguage, code: match[2].trim().slice(0, 3000) };
+}
+
+function reviewTopic(context) {
+  const known = contextLine(context, '题目');
+  const knowledge = contextLine(context, '知识点');
+  const firstPoint = knowledge.split(/[、,，]/)[0]?.replace(/（[^）]*）/g, '').trim();
+  if (/两数之和|two.?sum/i.test(known)) return { topic: '两数之和', point: firstPoint || '哈希表查找' };
+  if (/日期|闰年/i.test(known)) return { topic: '日期转年内第几天', point: firstPoint || '闰年判断规则' };
+  if (/括号|parenthes/i.test(known)) return { topic: '有效括号', point: firstPoint || '栈的先进后出' };
+  if (/链表/i.test(known)) return { topic: '链表题', point: firstPoint || '指针修改顺序' };
+  return {
+    topic: known ? clip(cleanText(known), 18) : '这道题',
+    point: firstPoint || '核心思路',
+  };
+}
+
+/** 演示模式下的复习卡生成：不调用网络，但返回与真实接口完全相同的结构。 */
+export function buildMockReviewCards(context) {
+  const { topic, point } = reviewTopic(context);
+  const codeBlock = firstCodeBlock(context);
+  const fallbackCode =
+    'def solve(nums, target):\n' +
+    '    seen = {}\n' +
+    '    for i, value in enumerate(nums):\n' +
+    '        need = target - value\n' +
+    '        if need in seen:\n' +
+    '            return [seen[need], i]\n' +
+    '        seen[value] = i\n' +
+    '    return []\n';
+  const snippet = codeBlock?.code || fallbackCode;
+  const language = codeBlock?.language || 'python';
+
+  return [
+    {
+      mode: 'explain',
+      pointName: point,
+      title: `${point} · 规则复述`,
+      prompt: `不看对话，用自己的话解释「${point}」。请说清：它解决什么问题、依赖的关键条件是什么、在什么情况下会失效。`,
+      reference: `参考学习记录中关于「${point}」的讲解，以及「${topic}」的通用解法。检查自己是否说清了定义、条件和边界，并与对话中的解释对照。`,
+      hints: ['先用自己的话说出它解决什么问题。', '再补充一个边界条件或反例。'],
+      rubric: ['说清定义或作用', '说清关键条件', '能指出边界或反例'],
+    },
+    {
+      mode: 'trace',
+      title: `${topic} · 手推变量`,
+      prompt: '逐轮推演下面代码的关键变量。请写出每一轮的 i、value、need，以及循环结束或返回时的状态与结果。',
+      reference: '按代码逐行执行：记录循环前的初始状态、每一轮变量如何更新、循环退出或返回的条件。以代码实际执行结果为准。',
+      snippet,
+      language,
+      hints: ['先写循环开始前的初始状态。', '每轮结束时更新一次 seen，再进入下一轮。'],
+      rubric: ['初始状态正确', '每轮变量更新正确', '能说清退出或返回条件'],
+    },
+    {
+      mode: 'code',
+      title: `${topic} · 默写代码`,
+      prompt: '不看历史记录，重新写出这道题的核心解法，并说明时间、空间复杂度。AI 只做逻辑审查，不运行代码，也不依赖编译器或测试结果。',
+      reference: codeBlock?.code || '参考复习笔记中的最终正确代码；重点对照循环不变量的维护、索引更新顺序和边界处理。',
+      language,
+      hints: ['先写函数签名和输入输出。', '再写主循环、状态更新和边界返回。'],
+      rubric: ['核心思路正确', '边界处理完整', '复杂度说明准确'],
+    },
+  ];
+}
+
+/** 演示模式的 AI 批改占位：只用文本启发式，真实模式会交给模型审查。 */
+export function gradeMockReview(card, answer) {
+  const text = String(answer || '').trim();
+  const mode = card?.mode || 'explain';
+  const short = text.length < 12;
+  const mentionsReasoning = /因为|所以|复杂度|条件|边界|循环|索引|返回|时间|空间/.test(text);
+  const codeLike = /(^|\n)\s*(def |class |function |for |while |if |return |int |void )/m.test(text);
+
+  let verdict = 'partial';
+  let score = 62;
+  let suggestedRating = 'hard';
+  let feedback = '内容基本到位，但还缺少一个关键条件或边界说明。试着把“为什么”讲出来，而不只是描述步骤。';
+  const missing = ['关键条件/原因', '一个边界或反例'];
+
+  if (short) {
+    verdict = 'incorrect';
+    score = 28;
+    suggestedRating = 'again';
+    feedback = '回答还太短，暂时看不出是否真正掌握。先写下你的核心结论，再补一个原因或例子。';
+  } else if (mode === 'code') {
+    if (codeLike && text.length > 55) {
+      verdict = 'correct';
+      score = 84;
+      suggestedRating = 'good';
+      feedback = '结构上已经包含可执行的解法。请再自查：空输入、重复元素、索引更新顺序，以及复杂度是否说明清楚。';
+    } else {
+      verdict = 'partial';
+      score = 58;
+      suggestedRating = 'hard';
+      feedback = '文字描述有了，但还不像一份完整代码。补上函数签名、主循环和返回条件，再对照复习笔记检查。';
+    }
+  } else if (mentionsReasoning && text.length > 35) {
+    verdict = 'correct';
+    score = 86;
+    suggestedRating = 'good';
+    feedback = '结论、原因和关键条件基本都覆盖到了。可以再补一个反例，检验自己是否真正理解边界。';
+  }
+
+  return {
+    verdict,
+    score,
+    feedback: `${feedback}（演示模式为启发式批改，真实模型会做更细的逻辑审查。）`,
+    missing: verdict === 'correct' ? ['边界反例（可选）'] : missing,
+    suggestedRating,
+  };
+}
