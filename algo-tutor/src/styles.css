@@ -5399,3 +5399,464 @@ button:focus:not(:focus-visible) {
   line-height: 13px;
   text-align: center;
 }
+
+/* ==========================================================================
+   Review workspace · full-screen + problem groups
+   ========================================================================== */
+
+.review-workspace {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  animation: fadeIn 0.18s ease;
+}
+
+.review-workspace::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse at 8% 0%, rgba(255, 252, 244, 0.34), transparent 40%),
+    radial-gradient(ellipse at 100% 100%, rgba(158, 71, 47, 0.045), transparent 42%);
+}
+
+.review-workspace-head {
+  flex: none;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 36px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.review-workspace-title {
+  min-width: 0;
+}
+
+.review-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  padding-bottom: 1px;
+  border-bottom: 1px solid var(--line);
+  color: var(--faint);
+  font-family: var(--font-hand);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+.review-back-button:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.review-workspace-head .review-eyebrow {
+  margin-bottom: 7px;
+}
+
+.review-workspace-title h2 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-hand);
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.review-progress-label {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.review-workspace-head .review-head-right {
+  padding-top: 3px;
+}
+
+.review-workspace-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.review-home {
+  width: min(1000px, 100%);
+  margin: 0 auto;
+  padding: 36px 36px 70px;
+}
+
+.review-home-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 18px 0 30px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.review-home-kicker {
+  color: var(--accent);
+  font-family: var(--font-hand);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+}
+
+.review-home-hero h3 {
+  margin: 8px 0 0;
+  color: var(--ink-strong);
+  font-family: var(--font-hand);
+  font-size: clamp(30px, 3.4vw, 44px);
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.review-home-hero p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.review-home-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.review-home-actions > span {
+  color: var(--faint);
+  font-family: var(--font-hand);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+}
+
+.review-start-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 35px;
+  padding: 0 18px;
+  font-size: 12px;
+}
+
+.review-group-section {
+  margin-top: 27px;
+}
+
+.review-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-hand);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.review-section-heading span:last-child {
+  color: var(--faint);
+  font-size: 9.5px;
+}
+
+.review-group-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 13px;
+}
+
+.review-group-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+  padding: 14px 14px 13px;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s var(--ease);
+}
+
+.review-group-card:hover {
+  border-color: var(--accent);
+  background: var(--hover-bg-soft);
+  transform: translateY(-1px);
+}
+
+.review-group-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 50% 45% 52% 47%;
+  color: var(--accent);
+}
+
+.review-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.review-group-body strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-hand);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-group-body small {
+  color: var(--faint);
+  font-size: 9.5px;
+}
+
+.review-group-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.review-group-modes span {
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  color: var(--faint);
+  font-family: var(--font-hand);
+  font-size: 8.5px;
+  letter-spacing: 0.03em;
+}
+
+.review-group-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  align-self: center;
+  margin-left: auto;
+  color: var(--faint);
+  font-family: var(--font-hand);
+  font-size: 10.5px;
+}
+
+.review-group-card:hover .review-group-arrow {
+  color: var(--accent);
+}
+
+.review-home--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding-top: 28px;
+}
+
+.review-home--empty .review-empty {
+  min-height: 0;
+}
+
+.review-stage {
+  width: min(880px, 100%);
+  margin: 0 auto;
+  padding: 24px 36px 70px;
+}
+
+.review-stage-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 9px;
+}
+
+.review-stage-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.review-stage-step {
+  flex: none;
+  color: var(--faint);
+  font-family: var(--font-hand);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
+
+.review-stage .review-card h3 {
+  margin-top: 7px;
+  font-size: clamp(24px, 2.7vw, 32px);
+}
+
+.review-stage .review-prompt {
+  max-width: 760px;
+}
+
+.review-stage .review-answer textarea {
+  min-height: 130px;
+}
+
+.review-stage .review-code-editor .code-editor-surface {
+  height: 300px;
+}
+
+.review-stage .review-actions {
+  margin-top: 22px;
+}
+
+.review-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100dvh - 160px);
+  padding: 30px;
+  text-align: center;
+}
+
+.review-complete-mark {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 16px;
+  border: 1px solid var(--accent);
+  border-radius: 50% 44% 52% 47%;
+  color: var(--accent);
+}
+
+.review-complete h3 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-hand);
+  font-size: 28px;
+  font-weight: 400;
+}
+
+.review-complete p {
+  margin: 9px 0 0;
+  color: var(--faint);
+  font-size: 11.5px;
+  line-height: 1.9;
+}
+
+.review-complete-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+  .review-workspace-head {
+    padding: 18px 22px 13px;
+  }
+
+  .review-workspace-title h2 {
+    font-size: 26px;
+  }
+
+  .review-home {
+    padding: 28px 22px 56px;
+  }
+
+  .review-stage {
+    padding: 20px 22px 60px;
+  }
+
+  .review-stage .review-code-editor .code-editor-surface {
+    height: 230px;
+  }
+}
+
+@media (max-width: 640px) {
+  .review-workspace-head {
+    padding: 16px 18px 11px;
+  }
+
+  .review-workspace-title h2 {
+    font-size: 23px;
+  }
+
+  .review-workspace-head .review-head-right {
+    gap: 5px;
+  }
+
+  .review-workspace-head .review-due-count {
+    font-size: 9px;
+  }
+
+  .review-home {
+    padding: 22px 18px 50px;
+  }
+
+  .review-home-hero {
+    padding: 11px 0 23px;
+  }
+
+  .review-home-hero h3 {
+    font-size: 28px;
+  }
+
+  .review-home-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .review-group-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .review-group-card {
+    padding: 12px;
+  }
+
+  .review-stage {
+    padding: 16px 18px 50px;
+  }
+
+  .review-stage .review-card h3 {
+    font-size: 22px;
+  }
+
+  .review-stage .review-prompt {
+    font-size: 12.5px;
+  }
+
+  .review-stage .review-code-editor .code-editor-surface {
+    height: 220px;
+  }
+
+  .review-complete {
+    min-height: calc(100dvh - 130px);
+  }
+}

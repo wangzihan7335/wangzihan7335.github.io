@@ -38,7 +38,7 @@ import { ChatView } from './components/ChatView';
 import { Composer } from './components/Composer';
 import { SettingsModal } from './components/SettingsModal';
 import { NoteDrawer } from './components/NoteDrawer';
-import { ReviewDrawer } from './components/ReviewDrawer';
+import { ReviewWorkspace } from './components/ReviewWorkspace';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ToastStack } from './components/ToastStack';
 import { cn } from './lib/utils';
@@ -727,6 +727,11 @@ export default function App() {
       return;
     }
     updateSession(id, (session) => ({ ...session, title: cleaned }));
+    setReviewCards((previous) =>
+      previous.map((card) =>
+        card.sessionId === id ? { ...card, sessionTitle: cleaned } : card,
+      ),
+    );
     addToast('会话已重命名。', 'success');
   };
 
@@ -951,10 +956,10 @@ export default function App() {
         onToast={addToast}
       />
 
-      <ReviewDrawer
+      <ReviewWorkspace
         open={reviewOpen}
         dueCards={dueCards}
-        totalCards={reviewCards.length}
+        allCards={reviewCards}
         config={activeConfig}
         activeSession={activeSession}
         generating={reviewGenerating}

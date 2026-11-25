@@ -144,6 +144,129 @@ export function dueReviewCards(cards: ReviewCard[], now = Date.now()): ReviewCar
     .sort((a, b) => a.dueAt - b.dueAt);
 }
 
+export interface ReviewGroup {
+  sessionId: string;
+  sessionTitle: string;
+  dueCards: ReviewCard[];
+  totalCount: number;
+  modes: ReviewCard['mode'][];
+}
+
+function cardPriority(card: ReviewCard): number {
+  if (card.lastResult === 'again') return 0;
+  if (card.lastResult === 'hard') return 1;
+  if (!card.lastReviewedAt) return 2;
+  return 3;
+}
+
+function sortDueCards(cards: ReviewCard[]): ReviewCard[] {
+  return [...cards].sort(
+    (a, b) => cardPriority(a) - cardPriority(b) || a.dueAt - b.dueAt,
+  );
+}
+
+/** 按来源题目分组；只返回当前有到期卡的题目，按最早到期时间排序。 */
+export function groupReviewCards(
+  cards: ReviewCard[],
+  dueCards: ReviewCard[],
+): ReviewGroup[] {
+  const groups = new Map<
+    string,
+    { sessionId: string; sessionTitle: string; dueCards: ReviewCard[]; totalCount: number }
+  >();
+
+  for (const card of cards) {
+    const current = groups.get(card.sessionId);
+    if (current) {
+      current.totalCount += 1;
+      current.sessionTitle = card.sessionTitle || current.sessionTitle;
+    } else {
+      groups.set(card.sessionId, {
+        sessionId: card.sessionId,
+        sessionTitle: card.sessionTitle || '未命名题目',
+        dueCards: [],
+        totalCount: 1,
+      });
+    }
+  }
+
+  for (const card of dueCards) {
+    const group = groups.get(card.sessionId);
+    if (group) group.dueCards.push(card);
+  }
+
+  return [...groups.values()]
+    .filter((group) => group.dueCards.length > 0)
+    .map((group) => {
+      const due = sortDueCards(group.dueCards);
+      const modes = [...new Set(due.map((card) => card.mode))];
+      return { ...group, dueCards: due, modes };
+    })
+    .sort(
+      (a, b) =>
+        Math.min(...a.dueCards.map((card) => card.dueAt)) -
+        Math.min(...b.dueCards.map((card) => card.dueAt)),
+    );
+}
+
+/**
+ * 混合队列：不同题目的卡片轮流出现，避免同一道题连续占满一轮。
+ * 同一题内部优先安排答错过的卡。
+ */
+export function buildMixedReviewQueue(dueCards: ReviewCard[]): ReviewCard[] {
+  const bySession = new Map<string, ReviewCard[]>();
+  for (const card of dueCards) {
+    const list = bySession.get(card.sessionId) || [];
+    list.push(card);
+    bySession.set(card.sessionId, list);
+  }
+  const groups = [...bySession.values()]
+    .map((cards) => sortDueCards(cards))
+    .sort(
+      (a, b) =>
+        Math.min(...a.map((card) => card.dueAt)) -
+        Math.min(...b.map((card) => card.dueAt)),
+    );
+
+  const queue: ReviewCard[] = [];
+  let cursor = 0;
+  let remaining = groups.reduce((sum, group) => sum + group.length, 0);
+  while (remaining > 0) {
+    let added = false;
+    for (let offset = 0; offset < groups.length; offset += 1) {
+      const index = (cursor + offset) % groups.length;
+      const group = groups[index];
+      if (group.length) {
+        queue.push(group.shift()!);
+        remaining -= 1;
+        added = true;
+        cursor = (index + 1) % groups.length;
+        break;
+      }
+    }
+    if (!added) break;
+  }
+  return queue;
+}
+
+export function sessionReviewQueue(
+  dueCards: ReviewCard[],
+  sessionId: string,
+): ReviewCard[] {
+  return sortDueCards(dueCards.filter((card) => card.sessionId === sessionId));
+}
+
+export function formatNextReview(dueAt: number, now = Date.now()): string {
+  const delta = Math.max(0, dueAt - now);
+  const minutes = Math.ceil(delta / 60_000);
+  if (minutes <= 1) return '即将到期';
+  if (minutes < 60) return `${minutes} 分钟后`;
+  const hours = Math.ceil(minutes / 60);
+  if (hours < 24) return `${hours} 小时后`;
+  const days = Math.ceil(hours / 24);
+  return `${days} 天后`;
+}
+
 export function reviewCardLanguage(card: ReviewCard): CodeLanguage {
   const match = CODE_LANGUAGES.find((language) => language.id === card.language);
   return match?.id ?? 'python';
