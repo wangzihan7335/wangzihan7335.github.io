@@ -30,8 +30,8 @@
   --panel-bg: rgba(252, 249, 242, 0.72);
   --composer-bg: rgba(252, 249, 242, 0.66);
   --composer-bg-focus: rgba(252, 249, 242, 0.85);
-  --editor-bg: rgba(252, 249, 242, 0.45);
-  --editor-current-line: rgba(158, 71, 47, 0.065);
+  --editor-bg: rgba(255, 252, 246, 0.7);
+  --editor-current-line: rgba(158, 71, 47, 0.08);
   --inline-code-bg: rgba(37, 35, 29, 0.055);
   --hover-bg: rgba(37, 35, 29, 0.045);
   --hover-bg-soft: rgba(37, 35, 29, 0.03);
@@ -45,14 +45,15 @@
   --danger-strong: #843a28;
   --status-green: #6c7e6a;
   --sketch-shadow: rgba(37, 35, 29, 0.05);
-  --editor-keyword: #914f3a;
-  --editor-string: #4f7357;
-  --editor-number: #8b5f7b;
-  --editor-title: #406a73;
-  --editor-comment: #8d8577;
-  --editor-variable: #7a6338;
-  --editor-type: #4f6e4d;
-  --editor-meta: #725984;
+  --editor-keyword: #a53f2b;
+  --editor-string: #2d6a45;
+  --editor-number: #a0445e;
+  --editor-title: #1f6274;
+  --editor-comment: #746b5e;
+  --editor-variable: #8a5a13;
+  --editor-type: #416d31;
+  --editor-meta: #6b478d;
+  --editor-operator: #7e6c58;
 
   --sidebar-width: 258px;
   --rail-width: 64px;
@@ -96,14 +97,15 @@
   --danger-strong: #e1a08a;
   --status-green: #93ad8f;
   --sketch-shadow: rgba(0, 0, 0, 0.32);
-  --editor-keyword: #d8a07e;
-  --editor-string: #a9c9ad;
-  --editor-number: #d0a6bd;
-  --editor-title: #a9cbd0;
-  --editor-comment: #7f877c;
-  --editor-variable: #d8c590;
-  --editor-type: #b2cbaa;
-  --editor-meta: #c9b1d6;
+  --editor-keyword: #f0a07d;
+  --editor-string: #a8d8b2;
+  --editor-number: #e6b0c8;
+  --editor-title: #99d2dc;
+  --editor-comment: #929b8f;
+  --editor-variable: #e8d092;
+  --editor-type: #c1dfb4;
+  --editor-meta: #d3b5e8;
+  --editor-operator: #c0b4a0;
 
   color-scheme: dark;
 }
@@ -4539,9 +4541,20 @@ button:focus:not(:focus-visible) {
   color: var(--accent);
 }
 
+/*
+ * 高亮层与透明 textarea 必须使用完全相同的字形度量。
+ * 主题 CSS 会给部分 token（如 section、emphasis）加粗/倾斜；这里统一复位，
+ * 否则长行中的光标会和高亮文字逐渐错开。
+ */
+.code-editor .code-highlight-scroll [class*="hljs-"] {
+  font-style: normal;
+  font-weight: inherit;
+}
+
 .code-editor .hljs-keyword,
 .code-editor .hljs-selector-tag,
-.code-editor .hljs-literal {
+.code-editor .hljs-literal,
+.code-editor .hljs-variable.language_ {
   color: var(--editor-keyword);
 }
 
@@ -4558,20 +4571,24 @@ button:focus:not(:focus-visible) {
 
 .code-editor .hljs-title,
 .code-editor .hljs-function .hljs-title,
-.code-editor .hljs-section {
+.code-editor .hljs-section,
+.code-editor .hljs-name,
+.code-editor .hljs-selector-id {
   color: var(--editor-title);
 }
 
 .code-editor .hljs-comment,
 .code-editor .hljs-quote {
   color: var(--editor-comment);
-  font-style: italic;
 }
 
 .code-editor .hljs-attr,
 .code-editor .hljs-attribute,
 .code-editor .hljs-variable,
-.code-editor .hljs-template-variable {
+.code-editor .hljs-template-variable,
+.code-editor .hljs-property,
+.code-editor .hljs-selector-class,
+.code-editor .hljs-selector-attr {
   color: var(--editor-variable);
 }
 
@@ -4582,8 +4599,14 @@ button:focus:not(:focus-visible) {
 
 .code-editor .hljs-meta,
 .code-editor .hljs-symbol,
-.code-editor .hljs-bullet {
+.code-editor .hljs-bullet,
+.code-editor .hljs-tag {
   color: var(--editor-meta);
+}
+
+.code-editor .hljs-operator,
+.code-editor .hljs-punctuation {
+  color: var(--editor-operator);
 }
 
 /* ==========================================================================
