@@ -349,7 +349,9 @@ export function CodeEditor({
           />
           <div className="code-highlight-scroll" ref={highlightRef} aria-hidden="true">
             <pre style={{ padding: `${PADDING_Y}px 16px`, lineHeight: `${LINE_HEIGHT}px` }}>
-              <code ref={codeRef} className={`hljs language-${language}`} />
+              {/* 不挂 hljs 类：Markdown 主题会给 pre code.hljs 加 padding/overflow，
+                  与透明 textarea 的光标和行号错位。 */}
+              <code ref={codeRef} className={`language-${language}`} />
             </pre>
           </div>
           <textarea
