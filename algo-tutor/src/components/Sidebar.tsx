@@ -52,7 +52,7 @@ function matchesQuery(session: Session, query: string): boolean {
     session.title,
     session.note?.markdown || '',
     ...session.messages.map((message) => message.content),
-    ...session.knowledgePoints.map((point) => point.name),
+    ...session.knowledgePoints.map((point) => `${point.name} ${point.role || ''}`),
   ]
     .join(' ')
     .toLowerCase();

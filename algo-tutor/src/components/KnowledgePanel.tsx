@@ -33,7 +33,15 @@ export function KnowledgePanel({
         {points.map((point, index) => (
           <div className="knowledge-row" key={point.id}>
             <span className="knowledge-index">{String(index + 1).padStart(2, '0')}</span>
-            <span className="knowledge-name">{point.name}</span>
+            <div className="knowledge-copy">
+              <span className="knowledge-name">{point.name}</span>
+              {point.role && (
+                <span className="knowledge-role" title={point.role}>
+                  <span className="knowledge-role-mark">本题作用</span>
+                  {point.role}
+                </span>
+              )}
+            </div>
             <div
               className="mastery-switch"
               role="radiogroup"

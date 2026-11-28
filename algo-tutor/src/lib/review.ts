@@ -52,7 +52,8 @@ export function buildReviewContext(session: Session): string {
   const knowledge = session.knowledgePoints
     .map((point) => {
       const mastery = point.mastery ? `（自评：${point.mastery}）` : '';
-      return `${point.name}${mastery}`;
+      const role = point.role ? `（本题作用：${point.role}）` : '';
+      return `${point.name}${role}${mastery}`;
     })
     .join('、');
   const assistantTexts = session.messages

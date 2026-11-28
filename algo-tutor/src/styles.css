@@ -1747,11 +1747,37 @@ button:focus:not(:focus-visible) {
 }
 
 .knowledge-name {
-  flex: 1;
   min-width: 0;
   color: var(--ink-soft);
   font-size: 12.8px;
   letter-spacing: 0.01em;
+}
+
+.knowledge-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.knowledge-role {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--faint);
+  font-family: var(--font-hand);
+  font-size: 10.5px;
+  line-height: 1.55;
+  letter-spacing: 0.015em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.knowledge-role-mark {
+  margin-right: 5px;
+  color: var(--accent);
+  font-size: 9px;
+  letter-spacing: 0.04em;
 }
 
 .mastery-switch {
@@ -3826,6 +3852,11 @@ button:focus:not(:focus-visible) {
 
   .knowledge-name {
     font-size: 12.4px;
+  }
+
+  .knowledge-role {
+    font-size: 10px;
+    -webkit-line-clamp: 3;
   }
 
   .mastery-switch {

@@ -45,6 +45,14 @@ export function makeFallbackTitle(problem: string): string {
   return clipped || '新的算法题';
 }
 
+function cleanKnowledgeRole(raw: unknown): string {
+  return String(raw ?? '')
+    .replace(/^\s*(?:在本题中|本题作用|作用|role)\s*[:：]\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60);
+}
+
 function parseKnowledgeJson(raw: string): KnowledgePoint[] {
   const text = String(raw || '')
     .trim()
@@ -68,15 +76,17 @@ function parseKnowledgeJson(raw: string): KnowledgePoint[] {
   for (let index = 0; index < candidate.length; index += 1) {
     const item = candidate[index];
     if (!item || typeof item !== 'object') continue;
-    const name = String((item as { name?: unknown }).name ?? '').trim();
+    const record = item as { name?: unknown; id?: unknown; role?: unknown; usage?: unknown; purpose?: unknown };
+    const name = String(record.name ?? '').trim();
     if (!name) continue;
-    let id = Number((item as { id?: unknown }).id);
+    let id = Number(record.id);
     if (!Number.isFinite(id) || id <= 0 || usedIds.has(id)) {
       id = 1;
       while (usedIds.has(id)) id += 1;
     }
     usedIds.add(id);
-    points.push({ id, name: name.slice(0, 40) });
+    const role = cleanKnowledgeRole(record.role ?? record.usage ?? record.purpose);
+    points.push({ id, name: name.slice(0, 40), ...(role ? { role } : {}) });
     if (points.length >= 10) break;
   }
   return points;

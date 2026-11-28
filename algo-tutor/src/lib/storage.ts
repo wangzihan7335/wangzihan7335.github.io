@@ -1,5 +1,7 @@
 import type {
   ChatMessage,
+  KnowledgePoint,
+  Mastery,
   MessageAttachment,
   ModelConfig,
   PersistedData,
@@ -64,6 +66,30 @@ function normalizeMessage(raw: unknown): ChatMessage | null {
   };
 }
 
+function normalizeKnowledgePoint(raw: unknown): KnowledgePoint | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const item = raw as Partial<KnowledgePoint>;
+  const name = String(item.name || '').trim();
+  if (!name) return null;
+  const role = String(item.role || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60);
+  const mastery: Mastery | undefined =
+    item.mastery === 'high' ||
+    item.mastery === 'medium' ||
+    item.mastery === 'low' ||
+    item.mastery === 'none'
+      ? item.mastery
+      : undefined;
+  return {
+    id: Number(item.id) || 0,
+    name: name.slice(0, 40),
+    ...(role ? { role } : {}),
+    ...(mastery ? { mastery } : {}),
+  };
+}
+
 function normalizeSession(raw: unknown): Session | null {
   if (!raw || typeof raw !== 'object') return null;
   const item = raw as Partial<Session>;
@@ -71,13 +97,21 @@ function normalizeSession(raw: unknown): Session | null {
   const messages = item.messages
     .map(normalizeMessage)
     .filter((message): message is ChatMessage => Boolean(message));
+  const knowledgePoints = Array.isArray(item.knowledgePoints)
+    ? item.knowledgePoints
+        .map(normalizeKnowledgePoint)
+        .filter((point): point is KnowledgePoint => Boolean(point))
+    : [];
   return {
     id: String(item.id),
     title: String(item.title || '未命名题目').slice(0, 40),
     createdAt: Number(item.createdAt) || Date.now(),
     updatedAt: Number(item.updatedAt) || Date.now(),
     messages,
-    knowledgePoints: Array.isArray(item.knowledgePoints) ? item.knowledgePoints : [],
+    knowledgePoints: knowledgePoints.map((point, index) => ({
+      ...point,
+      id: point.id > 0 ? point.id : index + 1,
+    })),
     knowledgeSubmitted: Boolean(item.knowledgeSubmitted),
     note: item.note,
     pinned: Boolean(item.pinned),

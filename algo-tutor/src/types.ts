@@ -25,6 +25,8 @@ export interface MessageAttachment {
 export interface KnowledgePoint {
   id: number;
   name: string;
+  /** 这个知识点在本题中承担的具体作用，用于帮助自评和后续复习。 */
+  role?: string;
   mastery?: Mastery;
 }
 
