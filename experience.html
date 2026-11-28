@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>近期经历 · 王子涵</title>
-<meta name="description" content="王子涵的近期经历——2026 年起就读于华中科技大学软件学院，软件工程 · AI 大模型实验班。" />
+<meta name="description" content="王子涵的近期经历——2026 年起就读于华中科技大学软件学院，并开发、上线了拾阶算法题引导助教。" />
 <meta name="theme-color" content="#F2F0E9" />
 <script>document.documentElement.classList.add('js');</script>
 
@@ -372,6 +372,21 @@ a { color: inherit; }
   line-height: 1.2;
 }
 
+.xp + .xp { margin-top: clamp(30px, 5vh, 48px); }
+
+.xp__link {
+  margin: 18px 0 0;
+  font-size: 12px;
+}
+
+.xp__link a {
+  text-decoration: none;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 2px;
+}
+
+.xp__link a:hover { opacity: .65; }
+
 /* 底部「后续补充」 */
 .more {
   display: flex;
@@ -526,7 +541,7 @@ a { color: inherit; }
     </div>
 
     <div class="intro__meta">
-      <p class="intro__count mono">01 ENTRY · 持续更新</p>
+      <p class="intro__count mono">02 ENTRIES · 持续更新</p>
       <p class="intro__note">2026 年至今的记录。新的经历会陆续补充在这里。</p>
     </div>
   </section>
@@ -556,7 +571,34 @@ a { color: inherit; }
       </div>
     </article>
 
-    <div class="more reveal" style="--i: 3">
+    <article class="xp">
+      <div class="xp__aside reveal" style="--i: 3">
+        <span class="xp__year">2026</span>
+        <span class="xp__to mono">PROJECT · 已上线</span>
+      </div>
+
+      <div class="xp__card reveal" style="--i: 4">
+        <div class="xp__head">
+          <p class="mono xp__kicker">PROJECT / 02</p>
+          <span class="pill pill--mint">已上线</span>
+        </div>
+
+        <h2 class="xp__title">拾阶 · 算法题引导助教</h2>
+        <p class="xp__program">个人项目 · AI 学习工具 / Web</p>
+        <p class="xp__desc">不直接给答案的算法题引导助教：输入题目后，AI 拆知识点、按自测掌握程度分层讲解与递进提问；学生贴代码时只指出问题，最后生成复习笔记和间隔重复卡片。支持对话 / 代码双模式、多文件上传、明暗主题和自配模型。</p>
+
+        <ul class="chips">
+          <li>2026</li>
+          <li>React / TypeScript</li>
+          <li>Node.js / SSE</li>
+          <li>Render</li>
+        </ul>
+
+        <p class="xp__link"><a href="https://shejie.onrender.com/" target="_blank" rel="noopener">shejie.onrender.com <span aria-hidden="true">↗</span></a></p>
+      </div>
+    </article>
+
+    <div class="more reveal" style="--i: 5">
       <span class="mono">MORE / 后续补充</span>
       <span class="more__rule" aria-hidden="true"></span>
       <a class="more__link" href="resume.html">查看完整简历 <span aria-hidden="true">↗</span></a>
@@ -599,3 +641,4 @@ a { color: inherit; }
 </script>
 </body>
 </html>
+
