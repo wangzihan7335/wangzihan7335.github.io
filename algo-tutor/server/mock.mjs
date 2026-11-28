@@ -378,17 +378,69 @@ function buildNote(problem, messages) {
   }
   const points = extractKnowledgePoints(messages);
   const pointById = new Map(points.map((p) => [Number(p.id), p]));
+  const priorityFor = (name) => {
+    if (/边界|重复|空|严格|易错/.test(name)) return '易错';
+    if (/规则|哈希|栈|不变量|通法/.test(name)) return '重点';
+    return '';
+  };
+  const pointDetails = {
+    闰年判断规则: {
+      intuition: '先固定这一年的二月天数，后面的累加才有依据',
+      error: '只写四年一闰，漏掉整百年和四百年的例外',
+      correct: '用 (year % 4 == 0 && year % 100 != 0) || year % 400 == 0',
+    },
+    月份天数累计: {
+      intuition: '整月天数先累加，当月的日号最后补',
+      error: '月份从 1 开始，但数组下标从 0 开始，容易差一',
+      correct: '取 days[month - 1]，不要直接取 days[month]',
+    },
+    边界与输入处理: {
+      intuition: '先把不可能出现的日期挡在外面，再进入计算',
+      error: '只检查月份，忘了检查日号是否超过当月天数',
+      correct: '先判断月份范围，再按当月天数判断日号',
+    },
+    哈希表查找: {
+      intuition: '记住已经见过的值，查找就不再回头扫',
+      error: '只想到存值，忘了还要保存对应的下标',
+      correct: '用 seen[value] = index 同时保存值和下标',
+    },
+    一边遍历一边建表: {
+      intuition: '先查 need，再把当前值写入 seen',
+      error: '先写 seen 再查 need，可能把当前元素当成答案',
+      correct: '保持「先查后写」的顺序',
+    },
+    重复元素与索引边界: {
+      intuition: '每个元素只能用一次，答案要在遍历中确定',
+      error: '遇到重复值时返回了同一个下标两次',
+      correct: '先查 need，命中就返回 seen[need] 和当前 i',
+    },
+  };
+  const detailFor = (name, mastery) => {
+    const detail = pointDetails[name];
+    if (!detail) return '';
+    if (mastery === '中') return `\n   - 核心直觉：${detail.intuition}`;
+    if (mastery === '低' || mastery === '不会') {
+      return `\n   - 易错：${detail.error}\n   - 正确做法：${detail.correct}`;
+    }
+    return '';
+  };
   const masteryLine = results.length
     ? results
-        .map((r) => {
+        .map((r, index) => {
           const point = pointById.get(Number(r.id));
           const name = point?.name || `知识点 ${r.id}`;
+          const mastery = MASTERY_LABEL[r.mastery] || '未选择';
+          const priority = priorityFor(name);
           const role = point?.role ? `｜本题作用：${point.role}` : '';
-          return `- ${name}（${MASTERY_LABEL[r.mastery] || '未选择'}）${role}`;
+          const tags = priority ? ` · ${priority}` : '';
+          return `${index + 1}. ${name}（${mastery}${tags}）${role}${detailFor(name, mastery)}`;
         })
         .join('\n')
     : points
-        .map((p) => `- ${p.name}（待复习）${p.role ? `｜本题作用：${p.role}` : ''}`)
+        .map((p, index) => {
+          const priority = priorityFor(p.name);
+          return `${index + 1}. ${p.name}（待复习${priority ? ` · ${priority}` : ''}）${p.role ? `｜本题作用：${p.role}` : ''}`;
+        })
         .join('\n');
 
   const dateProblem = /日期|闰年|一年中|一年中的第/.test(cleanText(problem));
@@ -409,13 +461,15 @@ function buildNote(problem, messages) {
         '```',
       ].join('\n');
 
-  const tests = dateProblem
+  const verification = dateProblem
     ? [
+        '手验：用 `2024-03-01` 代入：2024 是闰年，二月 29 天，31 + 29 + 1 = 61。',
         '- `2024-03-01` → `61`（闰年 + 二月 29 天）',
         '- `2023-03-01` → `60`（平年）',
         '- `1900-03-01` → `60`（整百年不闰）',
       ].join('\n')
     : [
+        '手验：拿最小样例逐行代入，确认每一步的中间变量。',
         '- 正常样例：手算一遍并核对中间变量；',
         '- 边界样例：空输入、单元素或重复元素；',
         '- 极值样例：数据规模取上限时复杂度是否可接受。',
@@ -460,9 +514,9 @@ function buildNote(problem, messages) {
     '',
     code,
     '',
-    '## 四、测试',
+    '## 四、验证',
     '',
-    tests,
+    verification,
     '',
     '## 五、易错点',
     '',
