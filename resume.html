@@ -568,6 +568,22 @@ a { color: inherit; }
 
 .bullets li::marker { color: var(--ink); }
 
+.comp + .comp { margin-top: 14px; }
+.comp--mint { border-left-color: var(--mint); }
+
+.comp__link {
+  margin: 16px 0 0;
+  font-size: 12px;
+}
+
+.comp__link a {
+  text-decoration: none;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 2px;
+}
+
+.comp__link a:hover { opacity: .65; }
+
 /* 研究兴趣 */
 .research {
   padding: 24px;
@@ -1033,7 +1049,7 @@ a { color: inherit; }
     <section class="sec reveal" id="practice" style="--i: 0">
       <div class="sec__head">
         <span class="mono sec__no">03</span>
-        <h2 class="sec__title">竞赛与实践</h2>
+        <h2 class="sec__title">竞赛与项目</h2>
       </div>
 
       <div class="sec__body">
@@ -1054,6 +1070,27 @@ a { color: inherit; }
             <li>独立承担其中一项子任务的设计与交付</li>
             <li>通过比赛完整走了一遍“需求理解—方案设计—交付物”的流程，理解了大模型能力落地到具体业务的链条</li>
           </ul>
+        </article>
+
+        <article class="comp comp--mint">
+          <div class="comp__top">
+            <div>
+              <p class="mono comp__kicker">PROJECT / WEB · 2026</p>
+              <h3 class="comp__title">拾阶 · 算法题引导助教</h3>
+            </div>
+            <span class="pill pill--mint">已上线</span>
+          </div>
+
+          <p class="comp__role">个人项目 · 设计与开发</p>
+
+          <ul class="bullets">
+            <li>面向算法初学者的 AI 引导助教：不直接给答案，先拆知识点、按自评掌握程度分层讲解和递进提问；学生贴代码时只指出问题，不代写</li>
+            <li>完成时生成可复制的复习笔记，并提炼成 1–3 张复习卡，按“不会 / 模糊 / 会 / 很熟”安排间隔重复</li>
+            <li>从产品设计、React 前端、Node 服务到 Render 部署完整实现；支持对话 / 代码双模式、多文件上传、明暗主题、自配 OpenAI 兼容模型与 SSE 流式输出</li>
+            <li>技术栈：React 19、TypeScript、Vite、Node.js、SSE、localStorage、Docker / Render</li>
+          </ul>
+
+          <p class="comp__link"><a href="https://shejie.onrender.com/" target="_blank" rel="noopener">shejie.onrender.com <span aria-hidden="true">↗</span></a></p>
         </article>
       </div>
     </section>
