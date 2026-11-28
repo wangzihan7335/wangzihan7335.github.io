@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Copy, Download, X } from 'lucide-react';
+import { Check, Copy, Download, FileText, X } from 'lucide-react';
 import type { Session } from '../types';
-import { copyText, downloadTextFile, formatFileSafeTitle, formatFullDate } from '../lib/utils';
+import {
+  copyText,
+  downloadTextFile,
+  formatFileSafeTitle,
+  formatFullDate,
+  markdownToPlainText,
+} from '../lib/utils';
 import { Markdown } from './Markdown';
 
 interface NoteDrawerProps {
@@ -13,12 +19,12 @@ interface NoteDrawerProps {
 }
 
 export function NoteDrawer({ open, session, onClose, onToast }: NoteDrawerProps) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'markdown' | 'plain' | null>(null);
   const note = session?.note;
 
   useEffect(() => {
     if (!open) return;
-    setCopied(false);
+    setCopied(null);
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
@@ -34,9 +40,20 @@ export function NoteDrawer({ open, session, onClose, onToast }: NoteDrawerProps)
       onToast('复制失败，请手动选择笔记内容。', 'error');
       return;
     }
-    setCopied(true);
+    setCopied('markdown');
     onToast('笔记已复制为 Markdown。', 'success');
-    window.setTimeout(() => setCopied(false), 1800);
+    window.setTimeout(() => setCopied(null), 1800);
+  };
+
+  const handleCopyPlain = async () => {
+    const ok = await copyText(markdownToPlainText(note.markdown));
+    if (!ok) {
+      onToast('复制失败，请手动选择笔记内容。', 'error');
+      return;
+    }
+    setCopied('plain');
+    onToast('手抄版已复制为纯文本，可以直接照着抄。', 'success');
+    window.setTimeout(() => setCopied(null), 1800);
   };
 
   const handleDownload = () => {
@@ -79,8 +96,12 @@ export function NoteDrawer({ open, session, onClose, onToast }: NoteDrawerProps)
 
         <div className="note-drawer-actions">
           <button type="button" className="link-button" onClick={handleCopy}>
-            {copied ? <Check size={13} /> : <Copy size={13} />}
-            {copied ? '已复制' : '复制'}
+            {copied === 'markdown' ? <Check size={13} /> : <Copy size={13} />}
+            {copied === 'markdown' ? '已复制' : '复制 Markdown'}
+          </button>
+          <button type="button" className="link-button" onClick={handleCopyPlain}>
+            {copied === 'plain' ? <Check size={13} /> : <FileText size={13} />}
+            {copied === 'plain' ? '已复制' : '复制手抄版'}
           </button>
           <button type="button" className="link-button" onClick={handleDownload}>
             <Download size={13} />

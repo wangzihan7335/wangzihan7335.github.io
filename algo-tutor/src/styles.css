@@ -1764,19 +1764,19 @@ button:focus:not(:focus-visible) {
 .knowledge-role {
   display: -webkit-box;
   overflow: hidden;
-  color: var(--faint);
+  color: var(--muted);
   font-family: var(--font-hand);
-  font-size: 10.5px;
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 1.6;
   letter-spacing: 0.015em;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
 .knowledge-role-mark {
-  margin-right: 5px;
+  margin-right: 6px;
   color: var(--accent);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.04em;
 }
 
@@ -3855,7 +3855,8 @@ button:focus:not(:focus-visible) {
   }
 
   .knowledge-role {
-    font-size: 10px;
+    font-size: 11.5px;
+    line-height: 1.65;
     -webkit-line-clamp: 3;
   }
 

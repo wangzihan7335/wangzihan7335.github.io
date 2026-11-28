@@ -377,82 +377,90 @@ function buildNote(problem, messages) {
     if (parsed) results.splice(0, results.length, ...parsed);
   }
   const points = extractKnowledgePoints(messages);
-  const nameById = new Map(points.map((p) => [Number(p.id), p.name]));
+  const pointById = new Map(points.map((p) => [Number(p.id), p]));
   const masteryLine = results.length
     ? results
-        .map((r) => `- **${nameById.get(Number(r.id)) || `知识点 ${r.id}`}**：${MASTERY_LABEL[r.mastery] || '未选择'}`)
+        .map((r) => {
+          const point = pointById.get(Number(r.id));
+          const name = point?.name || `知识点 ${r.id}`;
+          const role = point?.role ? `｜本题作用：${point.role}` : '';
+          return `- ${name}（${MASTERY_LABEL[r.mastery] || '未选择'}）${role}`;
+        })
         .join('\n')
-    : points.map((p) => `- **${p.name}**：待复习`).join('\n');
+    : points
+        .map((p) => `- ${p.name}（待复习）${p.role ? `｜本题作用：${p.role}` : ''}`)
+        .join('\n');
 
   const dateProblem = /日期|闰年|一年中|一年中的第/.test(cleanText(problem));
   const code = dateProblem
     ? [
         '```python',
         'def day_of_year(date_str: str) -> int:',
-        '    """输入 YYYY-MM-DD，返回这一天是当年的第几天。"""',
         '    year, month, day = map(int, date_str.split("-"))',
         '    is_leap = (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)',
-        '    days_in_month = [31, 29 if is_leap else 28, 31, 30, 31, 30,',
-        '                     31, 31, 30, 31, 30, 31]',
-        '    return sum(days_in_month[: month - 1]) + day',
+        '    days = [31, 29 if is_leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]',
+        '    return sum(days[: month - 1]) + day',
         '```',
       ].join('\n')
     : [
-        '> 这里放你最终跑通的代码。复盘时不要只看答案，先遮住代码，按下面的「通法」自己再写一遍。',
-        '',
         '```text',
-        '1. 明确输入 / 输出与边界；',
-        '2. 选择能维护不变量的数据结构；',
-        '3. 写出每一步的更新规则；',
-        '4. 用最小样例和边界样例验证。',
+        '先按「通法」写出函数骨架，再补核心循环；',
+        '这里只保留你最终跑通的实现，不要贴测试代码。',
         '```',
       ].join('\n');
 
   const tests = dateProblem
     ? [
-        '| 输入 | 期望输出 | 覆盖点 |',
-        '| --- | --- | --- |',
-        '| `2024-03-01` | `61` | 闰年 + 二月 29 天 |',
-        '| `2023-03-01` | `60` | 平年 |',
-        '| `2000-12-31` | `366` | 400 年特例 + 年末边界 |',
-        '| `1900-03-01` | `60` | 100 年特例（不是闰年） |',
+        '- `2024-03-01` → `61`（闰年 + 二月 29 天）',
+        '- `2023-03-01` → `60`（平年）',
+        '- `1900-03-01` → `60`（整百年不闰）',
       ].join('\n')
     : [
         '- 正常样例：手算一遍并核对中间变量；',
-        '- 边界样例：空输入、单元素、重复元素；',
-        '- 极值样例：数据规模取上限时的复杂度是否可接受。',
+        '- 边界样例：空输入、单元素或重复元素；',
+        '- 极值样例：数据规模取上限时复杂度是否可接受。',
       ].join('\n');
 
   const mistakes = dateProblem
     ? [
         '- 闰年规则漏掉「整百年」或「四百年」的例外；',
         '- 月份下标和实际月份差一；',
-        '- 只测常规日期，不测年初、年末、2 月 29 日。',
+        '- 只测常规日期，不测年初、年末和 2 月 29 日。',
       ].join('\n')
     : [
-        '- 只验证了正常样例，没有测试空输入、单元素或重复值；',
-        '- 修改指针 / 下标时顺序不对，覆盖了还需要用的值；',
-        '- 没有说清楚循环结束后答案应该停在哪一个状态。',
+        '- 只验证正常样例，漏掉空输入、单元素或重复值；',
+        '- 修改指针 / 下标时顺序不对，覆盖了还要用的值；',
+        '- 没想清楚循环结束后答案停在哪一个状态。',
       ].join('\n');
 
   return [
-    `# 复习笔记：${mockTitle(problem)}`,
+    `# ${mockTitle(problem)}`,
     '',
-    '## 一、这道题的知识点',
+    '## 一、知识点',
     '',
     masteryLine || '- 暂无知识点记录',
     '',
-    '## 二、通用解法（讲透这一类题）',
+    '## 二、通法',
     '',
     dateProblem
-      ? '日期题的通法是「规则前置 + 分段累计」：先把闰年这种会改变后续所有计算的前提确定下来，再把不规则的月份长度变成一张可索引的表，最后做一次前缀累计。这样每一步都只依赖已经确定的信息。'
-      : '先找到题目中不变的条件，再选择能维护这个条件的最小数据结构。每轮迭代只更新必要的信息，避免把中间状态全部保存下来。',
+      ? [
+          '1. 先判断闰年，确定二月天数。',
+          '2. 用一个数组存每月天数。',
+          '3. 累加当月之前的整月天数。',
+          '4. 再加上当月日号，返回结果。',
+        ].join('\n')
+      : [
+          '1. 先固定循环不变量：每一轮开始前，哪些信息一定成立。',
+          '2. 选择能维护这个不变量的数据结构。',
+          '3. 每轮只更新必要状态，处理边界后再继续。',
+          '4. 用最小样例和边界样例验证。',
+        ].join('\n'),
     '',
-    '## 三、最终正确代码',
+    '## 三、代码',
     '',
     code,
     '',
-    '## 四、测试用例',
+    '## 四、测试',
     '',
     tests,
     '',
@@ -460,10 +468,10 @@ function buildNote(problem, messages) {
     '',
     mistakes,
     '',
-    '## 六、一句话总结',
+    '## 六、一句话',
     '',
     dateProblem
-      ? '> 把「会变的规则」先固定下来，剩下的计算就只是按部就班地累加。'
+      ? '> 先把会变的闰年规则固定下来，剩下就只是按月累加。'
       : '> 先让不变量说清楚，再让代码替它跑起来。',
   ].join('\n');
 }

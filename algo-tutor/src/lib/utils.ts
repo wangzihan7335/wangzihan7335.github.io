@@ -74,6 +74,41 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
+/**
+ * 去掉 Markdown 标记，保留标题、列表和代码缩进，
+ * 方便把笔记直接复制到纯文本笔记或照着抄到本子上。
+ */
+export function markdownToPlainText(markdown: string): string {
+  let text = String(markdown || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/```[^\n]*\n/g, '\n')
+    .replace(/```/g, '\n')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1（$2）');
+
+  text = text
+    .replace(/^[ \t]{0,3}#{1,6}[ \t]*/gm, '')
+    .replace(/^[ \t]*>[ \t]?/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/(?<!\w)\*([^*\n]+)\*(?!\w)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^[ \t]*[-+*][ \t]+/gm, '· ')
+    .replace(/^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(\|[ \t]*:?-{3,}:?[ \t]*)+\|?[ \t]*$/gm, '')
+    .replace(/^[ \t]*\|(.+)\|[ \t]*$/gm, (_, row: string) =>
+      row
+        .split('|')
+        .map((cell) => cell.trim())
+        .filter(Boolean)
+        .join('  /  '),
+    )
+    .replace(/^[ \t]*-{3,}[ \t]*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  return text;
+}
+
 export function downloadTextFile(filename: string, content: string, mime = 'text/markdown'): void {
   const blob = new Blob([content], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);
