@@ -1,6 +1,7 @@
-import { Menu, Moon, PanelLeftOpen, StickyNote, Sun } from 'lucide-react';
+import { BookOpen, Menu, Moon, PanelLeftOpen, StickyNote, Sun } from 'lucide-react';
 import type { ModelConfig, Session, Theme } from '../types';
 import { cn } from '../lib/utils';
+import { findOriginalQuestion } from '../lib/question';
 
 interface ChatHeaderProps {
   session: Session | null;
@@ -12,6 +13,7 @@ interface ChatHeaderProps {
   onToggleSidebar: () => void;
   onOpenSettings: () => void;
   onOpenNote: () => void;
+  onOpenQuestion: () => void;
 }
 
 export function ChatHeader({
@@ -24,8 +26,10 @@ export function ChatHeader({
   onToggleSidebar,
   onOpenSettings,
   onOpenNote,
+  onOpenQuestion,
 }: ChatHeaderProps) {
   const note = session?.note;
+  const originalQuestion = findOriginalQuestion(session);
 
   return (
     <header className="chat-header">
@@ -70,6 +74,19 @@ export function ChatHeader({
             <span className={cn('model-dot', config?.baseUrl.startsWith('mock://') && 'is-demo')} />
             <span>{config?.name || '连接模型'}</span>
           </button>
+
+          {originalQuestion && (
+            <button
+              type="button"
+              className="question-button"
+              onClick={onOpenQuestion}
+              title="查看原题"
+              aria-label="查看原题"
+            >
+              <BookOpen size={13} />
+              <span>原题</span>
+            </button>
+          )}
 
           {note && (
             <button type="button" className="note-button" onClick={onOpenNote} title="复习笔记">

@@ -29,6 +29,7 @@ import {
   dueReviewCards,
   scheduleReviewCard,
 } from './lib/review';
+import { findOriginalQuestion } from './lib/question';
 import { languageLabel, type CodeLanguage } from './lib/code';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { Sidebar } from './components/Sidebar';
@@ -38,6 +39,7 @@ import { ChatView } from './components/ChatView';
 import { Composer } from './components/Composer';
 import { SettingsModal } from './components/SettingsModal';
 import { NoteDrawer } from './components/NoteDrawer';
+import { QuestionSheet } from './components/QuestionSheet';
 import { ReviewWorkspace } from './components/ReviewWorkspace';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ToastStack } from './components/ToastStack';
@@ -102,6 +104,7 @@ export default function App() {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [questionOpen, setQuestionOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewGenerating, setReviewGenerating] = useState(false);
   const [reviewClock, setReviewClock] = useState(() => Date.now());
@@ -122,6 +125,10 @@ export default function App() {
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId) ?? null,
     [sessions, activeSessionId],
+  );
+  const originalQuestion = useMemo(
+    () => findOriginalQuestion(activeSession),
+    [activeSession],
   );
   const activeConfig = useMemo(
     () => configs.find((config) => config.id === activeConfigId) ?? configs[0] ?? null,
@@ -189,15 +196,24 @@ export default function App() {
   }, [isMobile]);
 
   useEffect(() => {
+    setQuestionOpen(false);
+  }, [activeSessionId]);
+
+  useEffect(() => {
     const overlaysOpen =
-      settingsOpen || noteOpen || reviewOpen || Boolean(deleteTarget) || mobileSidebarOpen;
+      settingsOpen ||
+      noteOpen ||
+      questionOpen ||
+      reviewOpen ||
+      Boolean(deleteTarget) ||
+      mobileSidebarOpen;
     if (!overlaysOpen) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previous;
     };
-  }, [settingsOpen, noteOpen, reviewOpen, deleteTarget, mobileSidebarOpen]);
+  }, [settingsOpen, noteOpen, questionOpen, reviewOpen, deleteTarget, mobileSidebarOpen]);
 
   useEffect(() => {
     return () => {
@@ -817,6 +833,11 @@ export default function App() {
     setNoteOpen(true);
   };
 
+  const handleOpenQuestion = () => {
+    if (!originalQuestion) return;
+    setQuestionOpen(true);
+  };
+
   const handlePickExample = (prompt: string) => {
     setDraft(prompt);
     if (!isMobile) setFocusToken((token) => token + 1);
@@ -900,6 +921,7 @@ export default function App() {
           onToggleSidebar={handleToggleSidebar}
           onOpenSettings={handleOpenSettings}
           onOpenNote={handleOpenNote}
+          onOpenQuestion={handleOpenQuestion}
         />
 
         <div className="main-body">
@@ -947,6 +969,13 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         onSave={handleSaveSettings}
         onToast={addToast}
+      />
+
+      <QuestionSheet
+        open={questionOpen}
+        session={activeSession}
+        question={originalQuestion}
+        onClose={() => setQuestionOpen(false)}
       />
 
       <NoteDrawer
