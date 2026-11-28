@@ -105,9 +105,12 @@ npm run dev
 | Kimi / 月之暗面 | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` |
 | OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
 | 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash-250414` |
 | Ollama（本地） | `http://127.0.0.1:11434/v1` | `qwen2.5` |
 
 Base URL 既可以填基础地址，也可以直接填完整的 `/chat/completions` 地址。后端会自动补齐 `/v1/chat/completions`。
+
+> 智谱 GLM 使用 OpenAI 兼容接口，默认模型为免费版 `glm-4-flash-250414`；API Key 可在智谱开放平台的 [API Keys 页面](https://bigmodel.cn/usercenter/proj-mgmt/apikeys) 创建。需要上传图片时，把模型改成 `glm-4v-flash` 等视觉模型。
 
 > 公网部署默认会拦截本机与内网地址，因此 Ollama 这类本地接口需要本地调试时在 `.env` 设置 `ALLOW_PRIVATE_UPSTREAMS=1`。公开部署不要开启这个开关。
 
@@ -159,7 +162,7 @@ Health Check:    /api/health
 推荐白名单（不设置则允许任意公网 HTTPS 域名）：
 
 ```text
-ALLOWED_API_HOSTS=api.deepseek.com,api.moonshot.cn,api.openai.com,dashscope.aliyuncs.com
+ALLOWED_API_HOSTS=api.deepseek.com,api.moonshot.cn,api.openai.com,dashscope.aliyuncs.com,open.bigmodel.cn
 ```
 
 如果访客需要使用其他中转/自建服务，把对应域名加入这个变量即可。
@@ -167,7 +170,7 @@ ALLOWED_API_HOSTS=api.deepseek.com,api.moonshot.cn,api.openai.com,dashscope.aliy
 ### 分享给访客时告诉他们
 
 1. 打开站点后，点首页的「填入我的 Key」或右上角模型设置；
-2. 选 DeepSeek / Kimi / OpenAI / 通义千问预设，或手填其他 OpenAI 兼容接口；
+2. 选 DeepSeek / Kimi / OpenAI / 通义千问 / 智谱 GLM 预设，或手填其他 OpenAI 兼容接口；
 3. 填入自己在服务商后台申请的 API Key，点「测试连接」；
 4. 保存后回首页开始；
 5. Key 只保存在访客自己的浏览器，不会写入服务器；共用电脑用完请删除模型配置；
@@ -188,7 +191,7 @@ ALLOWED_API_HOSTS=api.deepseek.com,api.moonshot.cn,api.openai.com,dashscope.aliy
 ```bash
 docker build -t shijie-algo-tutor .
 docker run -d --name shijie -p 8787:8787 \
-  -e ALLOWED_API_HOSTS=api.deepseek.com,api.openai.com \
+  -e ALLOWED_API_HOSTS=api.deepseek.com,api.openai.com,open.bigmodel.cn \
   -e TRUST_PROXY=1 \
   shijie-algo-tutor
 ```

@@ -52,6 +52,13 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     model: 'qwen-plus',
     hint: '使用 DashScope 兼容模式 Key',
   },
+  {
+    id: 'zhipu',
+    name: '智谱 GLM',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4-flash-250414',
+    hint: '填写智谱开放平台的 Key；图片请改用视觉模型',
+  },
 ];
 
 export const EXAMPLE_PROBLEMS = [
